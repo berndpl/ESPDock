@@ -39,7 +39,7 @@ struct Board: Equatable, Identifiable {
     }
 
     /// On ESP32 native USB the serial number is the factory MAC address
-    /// ("1C:DB:D4:5B:0A:64"), which uniquely identifies the board. Used later to
+    /// ("AA:BB:CC:DD:EE:FF"), which uniquely identifies the board. Used later to
     /// remember which project belongs to which board.
     var macAddress: String? {
         guard isCertainlyESP32, let s = serialNumber,
