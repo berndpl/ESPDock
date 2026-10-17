@@ -1,0 +1,416 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0B98E04ED0F0ACEE78FC3EDD /* BackgroundMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 167EB1E2C6828E0A97346F19 /* BackgroundMode.swift */; };
+		1D718F32700308719B8AF93D /* SerialMonitorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8383B0FBFD477DAB3EFFFCE /* SerialMonitorView.swift */; };
+		22FD6EEE6AE05E4240F1CBA6 /* FirmwareReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41FF2474A1D85AB398BA241 /* FirmwareReport.swift */; };
+		267B0E91D0121F7675792F0E /* MacPort.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3D72331ABEEBADD066ED7A2 /* MacPort.swift */; };
+		5108D452AAC2FB29652B9D44 /* DebugRender.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35232B794F9B5279832A5F3E /* DebugRender.swift */; };
+		65DAB6683F3B9C6530CFF02E /* USBConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B6838D7646364B5D7E60886 /* USBConnection.swift */; };
+		7BDBAA975D0E480B95B7A1E6 /* BoardMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF8D38049AD60204C43127D /* BoardMonitor.swift */; };
+		9375C3CB3873C99DB6E0D672 /* ProjectCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73FABDE74D11BB7D61390114 /* ProjectCard.swift */; };
+		9A4B079F159859EC5B8C088F /* SerialMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FB81CDE8B4FF5F4DC89AA2A /* SerialMonitor.swift */; };
+		AB5E3F7E51F00C286522FEAE /* Deployer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AA5BE306745C4816454CD19 /* Deployer.swift */; };
+		B3C2ED058EC01733270CDE9F /* PinGuide.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DCFD852859D345B2A989B0D /* PinGuide.swift */; };
+		B8F1A3CB8EB691A45746A77E /* SelfEditCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1AB026E2FBCA83330CADB97 /* SelfEditCommand.swift */; };
+		BB22225D185D73382E1384EB /* ProjectLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3143BD1CF3AB9B5EF786CCE /* ProjectLink.swift */; };
+		BD923271EB1C2B229BE94023 /* PinGuideView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0408B7F9DBD7F02A430CE03E /* PinGuideView.swift */; };
+		BE967B1AE49E649BFBDBEDFA /* BoardCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E8242AAA06860182443EEC7 /* BoardCatalog.swift */; };
+		C839618B4D1BC2516379CC62 /* BuildInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0705F2B2984E4F6825A9C4E1 /* BuildInfo.swift */; };
+		CF2077B0FB93166D7B249E96 /* PinoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11CF24CEF0A5A9BCD84B517 /* PinoutView.swift */; };
+		D61AADDE04F5FA1182B200B4 /* FirmwareLib in Resources */ = {isa = PBXBuildFile; fileRef = 7F3EC419AEAF97109B5D1E72 /* FirmwareLib */; };
+		F90E73325ABC3DCC2818B143 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 307450D8514BA779E81DA56B /* ContentView.swift */; };
+		FA823D7FF2FD2400528AB82F /* ESPDockApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B08F75CF05C6C0B1CE7F7E28 /* ESPDockApp.swift */; };
+		FB58D2C4197D44F123DC08D0 /* BoardArt.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30C44AE8A6A103937C5447F /* BoardArt.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		0408B7F9DBD7F02A430CE03E /* PinGuideView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinGuideView.swift; sourceTree = "<group>"; };
+		0705F2B2984E4F6825A9C4E1 /* BuildInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuildInfo.swift; sourceTree = "<group>"; };
+		167EB1E2C6828E0A97346F19 /* BackgroundMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundMode.swift; sourceTree = "<group>"; };
+		307450D8514BA779E81DA56B /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		35232B794F9B5279832A5F3E /* DebugRender.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugRender.swift; sourceTree = "<group>"; };
+		4DCFD852859D345B2A989B0D /* PinGuide.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinGuide.swift; sourceTree = "<group>"; };
+		5B6838D7646364B5D7E60886 /* USBConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBConnection.swift; sourceTree = "<group>"; };
+		73FABDE74D11BB7D61390114 /* ProjectCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectCard.swift; sourceTree = "<group>"; };
+		7E8242AAA06860182443EEC7 /* BoardCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardCatalog.swift; sourceTree = "<group>"; };
+		7F3EC419AEAF97109B5D1E72 /* FirmwareLib */ = {isa = PBXFileReference; lastKnownFileType = folder; path = FirmwareLib; sourceTree = SOURCE_ROOT; };
+		7FB81CDE8B4FF5F4DC89AA2A /* SerialMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SerialMonitor.swift; sourceTree = "<group>"; };
+		8AA5BE306745C4816454CD19 /* Deployer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Deployer.swift; sourceTree = "<group>"; };
+		A1AB026E2FBCA83330CADB97 /* SelfEditCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelfEditCommand.swift; sourceTree = "<group>"; };
+		A3D72331ABEEBADD066ED7A2 /* MacPort.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacPort.swift; sourceTree = "<group>"; };
+		AAF8D38049AD60204C43127D /* BoardMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardMonitor.swift; sourceTree = "<group>"; };
+		B08F75CF05C6C0B1CE7F7E28 /* ESPDockApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ESPDockApp.swift; sourceTree = "<group>"; };
+		B8383B0FBFD477DAB3EFFFCE /* SerialMonitorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SerialMonitorView.swift; sourceTree = "<group>"; };
+		C3143BD1CF3AB9B5EF786CCE /* ProjectLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectLink.swift; sourceTree = "<group>"; };
+		D30C44AE8A6A103937C5447F /* BoardArt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardArt.swift; sourceTree = "<group>"; };
+		DD55AD72CCCB98E2D65C867F /* ESPDock.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ESPDock.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E41FF2474A1D85AB398BA241 /* FirmwareReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirmwareReport.swift; sourceTree = "<group>"; };
+		F11CF24CEF0A5A9BCD84B517 /* PinoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinoutView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		0ACA402C98E1F853ECE1DAA8 = {
+			isa = PBXGroup;
+			children = (
+				7F3EC419AEAF97109B5D1E72 /* FirmwareLib */,
+				AE29BF63AA3EACB778779519 /* ESPDock */,
+				B0AAF97C4C8A65D771153DF4 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		AE29BF63AA3EACB778779519 /* ESPDock */ = {
+			isa = PBXGroup;
+			children = (
+				167EB1E2C6828E0A97346F19 /* BackgroundMode.swift */,
+				D30C44AE8A6A103937C5447F /* BoardArt.swift */,
+				7E8242AAA06860182443EEC7 /* BoardCatalog.swift */,
+				AAF8D38049AD60204C43127D /* BoardMonitor.swift */,
+				0705F2B2984E4F6825A9C4E1 /* BuildInfo.swift */,
+				307450D8514BA779E81DA56B /* ContentView.swift */,
+				35232B794F9B5279832A5F3E /* DebugRender.swift */,
+				8AA5BE306745C4816454CD19 /* Deployer.swift */,
+				B08F75CF05C6C0B1CE7F7E28 /* ESPDockApp.swift */,
+				E41FF2474A1D85AB398BA241 /* FirmwareReport.swift */,
+				A3D72331ABEEBADD066ED7A2 /* MacPort.swift */,
+				4DCFD852859D345B2A989B0D /* PinGuide.swift */,
+				0408B7F9DBD7F02A430CE03E /* PinGuideView.swift */,
+				F11CF24CEF0A5A9BCD84B517 /* PinoutView.swift */,
+				73FABDE74D11BB7D61390114 /* ProjectCard.swift */,
+				C3143BD1CF3AB9B5EF786CCE /* ProjectLink.swift */,
+				A1AB026E2FBCA83330CADB97 /* SelfEditCommand.swift */,
+				7FB81CDE8B4FF5F4DC89AA2A /* SerialMonitor.swift */,
+				B8383B0FBFD477DAB3EFFFCE /* SerialMonitorView.swift */,
+				5B6838D7646364B5D7E60886 /* USBConnection.swift */,
+			);
+			path = ESPDock;
+			sourceTree = "<group>";
+		};
+		B0AAF97C4C8A65D771153DF4 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				DD55AD72CCCB98E2D65C867F /* ESPDock.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		01751E01AAB09FA365F7FE5F /* ESPDock */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D42B07571E269AB420AA2C64 /* Build configuration list for PBXNativeTarget "ESPDock" */;
+			buildPhases = (
+				9EA00384754E35B9AC9C06AC /* Sources */,
+				7C7D562EF7D807B90DC22CA2 /* Resources */,
+				DE194699DE8D58A704E708E4 /* Stamp Build Date */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ESPDock;
+			packageProductDependencies = (
+			);
+			productName = ESPDock;
+			productReference = DD55AD72CCCB98E2D65C867F /* ESPDock.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		8226815B4426A047C48FD26E /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					01751E01AAB09FA365F7FE5F = {
+						ProvisioningStyle = Manual;
+					};
+				};
+			};
+			buildConfigurationList = 11FF3923CC7FB70E5570D8BA /* Build configuration list for PBXProject "ESPDock" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 0ACA402C98E1F853ECE1DAA8;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = B0AAF97C4C8A65D771153DF4 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				01751E01AAB09FA365F7FE5F /* ESPDock */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		7C7D562EF7D807B90DC22CA2 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D61AADDE04F5FA1182B200B4 /* FirmwareLib in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		DE194699DE8D58A704E708E4 /* Stamp Build Date */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)",
+			);
+			name = "Stamp Build Date";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Stamp the build date/time (UTC, ISO 8601) into the built app's Info.plist.\nset -e\nPLIST=\"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\n[ -f \"${PLIST}\" ] || exit 0\nBUILD_DATE=\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"\n/usr/libexec/PlistBuddy -c \"Set :BuildDate ${BUILD_DATE}\" \"${PLIST}\" 2>/dev/null \\\n  || /usr/libexec/PlistBuddy -c \"Add :BuildDate string ${BUILD_DATE}\" \"${PLIST}\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		9EA00384754E35B9AC9C06AC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0B98E04ED0F0ACEE78FC3EDD /* BackgroundMode.swift in Sources */,
+				FB58D2C4197D44F123DC08D0 /* BoardArt.swift in Sources */,
+				BE967B1AE49E649BFBDBEDFA /* BoardCatalog.swift in Sources */,
+				7BDBAA975D0E480B95B7A1E6 /* BoardMonitor.swift in Sources */,
+				C839618B4D1BC2516379CC62 /* BuildInfo.swift in Sources */,
+				F90E73325ABC3DCC2818B143 /* ContentView.swift in Sources */,
+				5108D452AAC2FB29652B9D44 /* DebugRender.swift in Sources */,
+				AB5E3F7E51F00C286522FEAE /* Deployer.swift in Sources */,
+				FA823D7FF2FD2400528AB82F /* ESPDockApp.swift in Sources */,
+				22FD6EEE6AE05E4240F1CBA6 /* FirmwareReport.swift in Sources */,
+				267B0E91D0121F7675792F0E /* MacPort.swift in Sources */,
+				B3C2ED058EC01733270CDE9F /* PinGuide.swift in Sources */,
+				BD923271EB1C2B229BE94023 /* PinGuideView.swift in Sources */,
+				CF2077B0FB93166D7B249E96 /* PinoutView.swift in Sources */,
+				9375C3CB3873C99DB6E0D672 /* ProjectCard.swift in Sources */,
+				BB22225D185D73382E1384EB /* ProjectLink.swift in Sources */,
+				B8F1A3CB8EB691A45746A77E /* SelfEditCommand.swift in Sources */,
+				9A4B079F159859EC5B8C088F /* SerialMonitor.swift in Sources */,
+				1D718F32700308719B8AF93D /* SerialMonitorView.swift in Sources */,
+				65DAB6683F3B9C6530CFF02E /* USBConnection.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		281F11C333497A8557E06524 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = ESPDock;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = de.plontsch.ESPDock;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		2C1C767BA24578B5B0F61A2B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = ESPDock;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = de.plontsch.ESPDock;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		9EBE44AD34EA0B7DDDFE2270 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 0.1;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		F26ED51A42418E34E56B7439 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 0.1;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		11FF3923CC7FB70E5570D8BA /* Build configuration list for PBXProject "ESPDock" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9EBE44AD34EA0B7DDDFE2270 /* Debug */,
+				F26ED51A42418E34E56B7439 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		D42B07571E269AB420AA2C64 /* Build configuration list for PBXNativeTarget "ESPDock" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2C1C767BA24578B5B0F61A2B /* Debug */,
+				281F11C333497A8557E06524 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 8226815B4426A047C48FD26E /* Project object */;
+}

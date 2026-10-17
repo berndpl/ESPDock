@@ -1,0 +1,52 @@
+name: ESPDock
+options:
+  bundleIdPrefix: de.plontsch
+  deploymentTarget:
+    macOS: "26.0"
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    MARKETING_VERSION: "0.1"
+    CURRENT_PROJECT_VERSION: "1"
+    # No team selected yet for this new project: sign to run locally only.
+    # Pick a Team in Xcode when needed; it will be preserved on regeneration.
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGN_STYLE: Manual
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+targets:
+  ESPDock:
+    type: application
+    platform: macOS
+    sources:
+      - ESPDock
+      # Firmware library copied into projects by "Add Version Reporting…"
+      - path: FirmwareLib
+        type: folder
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: de.plontsch.ESPDock
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: ESPDock
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.developer-tools
+        # No App Sandbox: the app must read IOKit serial devices and (later)
+        # run ~/.platformio/penv/bin/pio. Personal tool, not distributed.
+        ENABLE_APP_SANDBOX: NO
+        ENABLE_HARDENED_RUNTIME: NO
+    postBuildScripts:
+      - name: Stamp Build Date
+        basedOnDependencyAnalysis: false
+        # Declared as an *input* (not output) so the phase is ordered after
+        # ProcessInfoPlistFile; without it the parallel build ran the stamp
+        # first and the date was overwritten.
+        inputFiles:
+          - $(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)
+        script: |
+          # Stamp the build date/time (UTC, ISO 8601) into the built app's Info.plist.
+          set -e
+          PLIST="${TARGET_BUILD_DIR}/${INFOPLIST_PATH}"
+          [ -f "${PLIST}" ] || exit 0
+          BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          /usr/libexec/PlistBuddy -c "Set :BuildDate ${BUILD_DATE}" "${PLIST}" 2>/dev/null \
+            || /usr/libexec/PlistBuddy -c "Add :BuildDate string ${BUILD_DATE}" "${PLIST}"
