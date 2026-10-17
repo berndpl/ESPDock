@@ -11,6 +11,8 @@ struct ContentView: View {
     @State private var showSerial = false
     /// Height of the cards, measured; the window (and the inspector) match it.
     @State private var contentHeight: CGFloat?
+    /// External parts the linked project's code wires to the board.
+    @State private var parts: [DetectedPart] = []
 
     static let width: CGFloat = 520
     static let monitorWidth: CGFloat = 440
@@ -30,7 +32,7 @@ struct ContentView: View {
                 if let model {
                     GroupBox {
                         VStack(spacing: 10) {
-                            PinoutView(model: model)
+                            PinoutView(model: model, parts: parts)
                             HStack(spacing: 16) {
                                 Link("Seeed Wiki", destination: model.referenceURL)
                                 Link("Schematic (PDF)", destination: model.schematicURL)
@@ -103,11 +105,29 @@ struct ContentView: View {
         }
         .animation(.default, value: monitor.board)
         .animation(.default, value: model)
+        // Rescan the code for external parts whenever the project changes
+        // (the manifest updates live via FSEvents), off the main actor.
+        .task(id: wiringScanKey(model)) {
+            guard let board = monitor.board, let model,
+                  let link = projects.link(for: board) else { parts = []; return }
+            let url = link.url
+            parts = await Task.detached { PeripheralScanner.scan(projectAt: url, board: model) }.value
+        }
         .task(id: monitor.board?.macAddress) {
             projects.watch(monitor.board)
             // Ask the firmware what it runs (needs the ESPDock library).
             if let board = monitor.board, !deployer.isRunning { firmware.probe(board) }
         }
+    }
+}
+
+extension ContentView {
+    /// Changes when the linked project, its files or the board model change.
+    fileprivate func wiringScanKey(_ model: BoardModel?) -> String {
+        guard let board = monitor.board, let link = projects.link(for: board) else { return "" }
+        let code = projects.watchedMAC == board.macAddress
+            ? projects.currentManifest.map(CodeFingerprint.combined) ?? "" : ""
+        return "\(link.path)|\(code)|\(model?.id ?? "")"
     }
 }
 

@@ -10,6 +10,9 @@ import SwiftUI
 /// each pin's hover popover (PinGuide), to keep the diagram calm.
 struct PinoutView: View {
     let model: BoardModel
+    /// External parts found in the linked project's code (PeripheralScanner),
+    /// drawn under the board with wires. Empty → the card looks as before.
+    var parts: [DetectedPart] = []
 
     /// Points per millimetre. 11 pt/mm → 28 pt pin pitch, roomy enough for labels.
     private let scale: CGFloat = 11
@@ -18,33 +21,59 @@ struct PinoutView: View {
     var body: some View {
         let geo = BoardGeometry(model: model, scale: scale)
 
-        // spacing 0: leaders run right up to the board edge where the pads start
-        HStack(alignment: .top, spacing: 0) {
-            sideColumn(.left, geo: geo)
-            BoardBody(model: model, geo: geo, style: style) { style = style.toggled }
-            sideColumn(.right, geo: geo)
-        }
-        .frame(maxWidth: .infinity)
-        // Room for the blueprint's dimension line under the board; kept in
-        // both styles so toggling doesn't shift the layout.
-        .padding(.top, 28)   // clears the 1.8 mm USB-C overhang
-        .padding(.bottom, 30)
-        .background {
-            if style == .blueprint {
-                Blueprint.Paper(mm: scale)
-                    .clipShape(.rect(cornerRadius: 12))
-                    .transition(.opacity)
+        VStack(spacing: 14) {
+            VStack(spacing: 0) {
+                // spacing 0: leaders run right up to the board edge where the pads start
+                HStack(alignment: .top, spacing: 0) {
+                    sideColumn(.left, geo: geo)
+                    BoardBody(model: model, geo: geo, style: style) { style = style.toggled }
+                    sideColumn(.right, geo: geo)
+                }
+                .frame(maxWidth: .infinity)
+                // Room for the blueprint's dimension line under the board; kept in
+                // both styles so toggling doesn't shift the layout.
+                .padding(.top, 28)   // clears the 1.8 mm USB-C overhang
+                .padding(.bottom, 30)
+                .transformAnchorPreference(key: WireAnchorKey.self, value: .bounds) { $0["board:body"] = $1 }
+
+                if let part = parts.first {
+                    // Bus area: one level per wire between the board and the part.
+                    Color.clear.frame(height: CGFloat(part.connections.count) * WiresOverlay.busGap + 16)
+                    PartBoardView(detected: part, pitch: geo.pitch)
+                        .padding(.bottom, 20)
+                }
+            }
+            .overlayPreferenceValue(WireAnchorKey.self) { anchors in
+                if let part = parts.first {
+                    WiresOverlay(detected: part, anchors: anchors, model: model)
+                }
+            }
+            .background {
+                if style == .blueprint {
+                    Blueprint.Paper(mm: scale)
+                        .clipShape(.rect(cornerRadius: 12))
+                        .transition(.opacity)
+                }
+            }
+
+            // Outside the blueprint paper, so it stays readable in both styles.
+            if let part = parts.first {
+                WiringLegend(detected: part)
+                    .padding(.horizontal, 8)
             }
         }
         .environment(\.boardStyle, style)
         .animation(.easeInOut(duration: 0.25), value: style)
+        .animation(.default, value: parts)
     }
 
     private func sideColumn(_ side: Pin.Side, geo: BoardGeometry) -> some View {
         VStack(alignment: side == .left ? .trailing : .leading, spacing: 0) {
             Color.clear.frame(height: geo.firstPinCenter - geo.pitch / 2)
             ForEach(model.pins(on: side)) { pin in
-                PinLabel(pin: pin, side: side).frame(height: geo.pitch)
+                PinLabel(pin: pin, side: side)
+                    .anchorPreference(key: WireAnchorKey.self, value: .bounds) { ["board:\(pin.label)": $0] }
+                    .frame(height: geo.pitch)
             }
         }
         .frame(width: 112, alignment: side == .left ? .trailing : .leading)

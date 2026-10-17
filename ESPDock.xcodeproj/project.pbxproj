@@ -13,9 +13,11 @@
 		22FD6EEE6AE05E4240F1CBA6 /* FirmwareReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41FF2474A1D85AB398BA241 /* FirmwareReport.swift */; };
 		267B0E91D0121F7675792F0E /* MacPort.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3D72331ABEEBADD066ED7A2 /* MacPort.swift */; };
 		5108D452AAC2FB29652B9D44 /* DebugRender.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35232B794F9B5279832A5F3E /* DebugRender.swift */; };
+		5B59E457FB4A23288A472162 /* Peripherals.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2025892E258E7F2A7A00C2DD /* Peripherals.swift */; };
 		65DAB6683F3B9C6530CFF02E /* USBConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B6838D7646364B5D7E60886 /* USBConnection.swift */; };
 		7BDBAA975D0E480B95B7A1E6 /* BoardMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF8D38049AD60204C43127D /* BoardMonitor.swift */; };
 		9375C3CB3873C99DB6E0D672 /* ProjectCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73FABDE74D11BB7D61390114 /* ProjectCard.swift */; };
+		95BDB361158FEBFBEA0CC8AE /* PartWiringView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4897A46053B7561BE6A2828E /* PartWiringView.swift */; };
 		9A4B079F159859EC5B8C088F /* SerialMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FB81CDE8B4FF5F4DC89AA2A /* SerialMonitor.swift */; };
 		AB5E3F7E51F00C286522FEAE /* Deployer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AA5BE306745C4816454CD19 /* Deployer.swift */; };
 		B3C2ED058EC01733270CDE9F /* PinGuide.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DCFD852859D345B2A989B0D /* PinGuide.swift */; };
@@ -35,8 +37,10 @@
 		0408B7F9DBD7F02A430CE03E /* PinGuideView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinGuideView.swift; sourceTree = "<group>"; };
 		0705F2B2984E4F6825A9C4E1 /* BuildInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuildInfo.swift; sourceTree = "<group>"; };
 		167EB1E2C6828E0A97346F19 /* BackgroundMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundMode.swift; sourceTree = "<group>"; };
+		2025892E258E7F2A7A00C2DD /* Peripherals.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Peripherals.swift; sourceTree = "<group>"; };
 		307450D8514BA779E81DA56B /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		35232B794F9B5279832A5F3E /* DebugRender.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugRender.swift; sourceTree = "<group>"; };
+		4897A46053B7561BE6A2828E /* PartWiringView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PartWiringView.swift; sourceTree = "<group>"; };
 		4DCFD852859D345B2A989B0D /* PinGuide.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinGuide.swift; sourceTree = "<group>"; };
 		5B6838D7646364B5D7E60886 /* USBConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBConnection.swift; sourceTree = "<group>"; };
 		61AAF9578C4778F40428155E /* CodingAgent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodingAgent.swift; sourceTree = "<group>"; };
@@ -82,6 +86,8 @@
 				B08F75CF05C6C0B1CE7F7E28 /* ESPDockApp.swift */,
 				E41FF2474A1D85AB398BA241 /* FirmwareReport.swift */,
 				A3D72331ABEEBADD066ED7A2 /* MacPort.swift */,
+				4897A46053B7561BE6A2828E /* PartWiringView.swift */,
+				2025892E258E7F2A7A00C2DD /* Peripherals.swift */,
 				4DCFD852859D345B2A989B0D /* PinGuide.swift */,
 				0408B7F9DBD7F02A430CE03E /* PinGuideView.swift */,
 				F11CF24CEF0A5A9BCD84B517 /* PinoutView.swift */,
@@ -209,6 +215,8 @@
 				FA823D7FF2FD2400528AB82F /* ESPDockApp.swift in Sources */,
 				22FD6EEE6AE05E4240F1CBA6 /* FirmwareReport.swift in Sources */,
 				267B0E91D0121F7675792F0E /* MacPort.swift in Sources */,
+				95BDB361158FEBFBEA0CC8AE /* PartWiringView.swift in Sources */,
+				5B59E457FB4A23288A472162 /* Peripherals.swift in Sources */,
 				B3C2ED058EC01733270CDE9F /* PinGuide.swift in Sources */,
 				BD923271EB1C2B229BE94023 /* PinGuideView.swift in Sources */,
 				CF2077B0FB93166D7B249E96 /* PinoutView.swift in Sources */,

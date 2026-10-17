@@ -7,7 +7,7 @@ import Foundation
 /// Detected from each tool's own session records, not from repo files: a repo
 /// can carry both a `.claude/` folder and Copilot instructions, but only one
 /// was used last. Whichever has the most recent session for the project wins.
-enum CodingAgent: Hashable, Sendable {
+enum CodingAgent: String, Hashable, Sendable {
     case claudeCode
     case copilot
 
@@ -28,6 +28,23 @@ enum CodingAgent: Hashable, Sendable {
     /// Starts the agent's CLI in a new Terminal window in the project folder.
     @MainActor func open(_ project: URL) {
         Terminal.run(command, in: project, title: project.lastPathComponent)
+    }
+}
+
+/// Last detected agents per project path, so the button shows the right tool
+/// at once instead of "Open in VS Code" for the seconds a fresh scan takes.
+enum AgentCache {
+    private static let key = "codingAgentsByProject"
+
+    static func agents(for path: String) -> [CodingAgent] {
+        let all = UserDefaults.standard.dictionary(forKey: key) as? [String: [String]] ?? [:]
+        return (all[path] ?? []).compactMap(CodingAgent.init(rawValue:))
+    }
+
+    static func store(_ agents: [CodingAgent], for path: String) {
+        var all = UserDefaults.standard.dictionary(forKey: key) as? [String: [String]] ?? [:]
+        all[path] = agents.map(\.rawValue)
+        UserDefaults.standard.set(all, forKey: key)
     }
 }
 

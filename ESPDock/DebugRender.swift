@@ -31,12 +31,35 @@ enum DebugRender {
             print(CodeFingerprint.combined(CodeFingerprint.manifest(projectAt: URL(fileURLWithPath: args[i + 1]))))
             exit(0)
         }
+        // --scan-wiring <project>: print the external parts and wires found in code.
+        if let i = args.firstIndex(of: "--scan-wiring"), i + 1 < args.count {
+            let parts = PeripheralScanner.scan(projectAt: URL(fileURLWithPath: args[i + 1]),
+                                               board: BoardCatalog.xiaoESP32S3)
+            if parts.isEmpty { print("no parts") }
+            for p in parts {
+                print("\(p.part.name) (named in code: \(p.namedInCode))")
+                for c in p.connections {
+                    let from: String
+                    switch c.origin {
+                    case let .code(file, line, expr): from = "\(file):\(line) \(expr)"
+                    case let .assumed(why): from = "assumed — \(why)"
+                    }
+                    print("  \(c.partPin) ← \(c.end.boardPin)\(c.end.gpio.map { " (GPIO\($0))" } ?? "")  \(from)")
+                }
+                for issue in p.issues { print("  ! \(issue)") }
+            }
+            exit(0)
+        }
         // --render-serial <out.png> <port>: attach the monitor, query, snapshot.
         let serialMode = args.contains("--render-serial")
         // --render-guide <out.png> [dark|light] renders the D4 pin popover.
         let guideMode = args.contains("--render-guide")
+        // --render-wiring <out.png> [dark|light] <project> [blueprint]: the pinout
+        // card with the external parts found in that project's code.
+        let wiringMode = args.contains("--render-wiring")
         guard let i = args.firstIndex(of: serialMode ? "--render-serial"
-                                      : guideMode ? "--render-guide" : "--render-pinout"),
+                                      : guideMode ? "--render-guide"
+                                      : wiringMode ? "--render-wiring" : "--render-pinout"),
               i + 1 < args.count else { return }
         let dark = !serialMode && args.count > i + 2 && args[i + 2] == "dark"
         // Whole window content with the live board + project state. `.task`
@@ -54,7 +77,19 @@ enum DebugRender {
             serial.send("ESPDOCK?")
             RunLoop.main.run(until: Date().addingTimeInterval(1.5))
         }
-        let content: AnyView = serialMode
+        if wiringMode, args.count > i + 3 {
+            // Argument domain: wins over the user's setting but isn't saved.
+            UserDefaults.standard.setVolatileDomain(
+                ["boardStyle": args.count > i + 4 && args[i + 4] == "blueprint" ? "blueprint" : "realistic"],
+                forName: UserDefaults.argumentDomain)
+        }
+        let wiringParts = wiringMode && args.count > i + 3
+            ? PeripheralScanner.scan(projectAt: URL(fileURLWithPath: args[i + 3]), board: BoardCatalog.xiaoESP32S3)
+            : []
+        let content: AnyView = wiringMode
+            ? AnyView(GroupBox { PinoutView(model: BoardCatalog.xiaoESP32S3, parts: wiringParts).padding(4) }
+                .frame(width: 480).padding(20))
+            : serialMode
             ? AnyView(SerialMonitorView(monitor: serial).frame(width: 440, height: 360))
             : guideMode
             ? AnyView(PinGuideView(guide: .forPin(BoardCatalog.xiaoESP32S3.pins[4])))

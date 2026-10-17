@@ -89,8 +89,14 @@ struct ProjectCard: View {
         // Off the main actor: scanning Copilot's session folders reads a few
         // thousand small files. Once per linked project.
         .task(id: link.path) {
+            // Last known result first (no label jump), then a fresh scan.
+            if agents.isEmpty {
+                agents = AgentCache.agents(for: link.path).map { AgentUse(agent: $0, lastUsed: .distantPast) }
+            }
             let url = link.url
-            agents = await Task.detached { AgentDetector.detect(projectAt: url) }.value
+            let fresh = await Task.detached { AgentDetector.detect(projectAt: url) }.value
+            agents = fresh
+            AgentCache.store(fresh.map(\.agent), for: link.path)
         }
 
         Divider()
@@ -109,8 +115,10 @@ struct ProjectCard: View {
             return VSCode.isInstalled ? "Open \(link.name) in Visual Studio Code"
                                       : "VS Code not found — opens in Finder"
         }
-        let when = use.lastUsed.formatted(.relative(presentation: .named))
-        return "Starts \(use.agent.command) in Terminal in \(link.name) · last used \(when)"
+        let base = "Starts \(use.agent.command) in Terminal in \(link.name)"
+        // Cached entries (shown until the fresh scan lands) carry no date.
+        guard use.lastUsed != .distantPast else { return base }
+        return base + " · last used \(use.lastUsed.formatted(.relative(presentation: .named)))"
     }
 
     // MARK: Status + ▶︎

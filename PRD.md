@@ -98,3 +98,40 @@ may run the local PlatformIO CLI (`~/.platformio/penv/bin/pio`) directly.
   inspector reserves its column even while hidden, so the outer frame is
   pinned explicitly (520 pt closed, 960 pt open; height = measured cards).
   Not persisted: the window always opens without the monitor.
+
+## Feature: wiring to external parts (2026-10-17)
+
+**Problem.** When a project drives an external board (first case: the radio
+project's MAX98357A I2S amplifier), debugging starts with "is it wired the
+way the code expects?". Today that means reading pin constants and mapping
+GPIOs to XIAO silkscreen labels by hand.
+
+**What it does.** ESPDock scans the linked project's code for pin
+assignments, recognises the external part, and draws it under the XIAO in
+the pinout card with a wire from each XIAO pin to the part pin the code
+expects. With no recognised part, the card looks exactly as before.
+
+**Interview answers.**
+- Detection: code scan + parts catalog. No wiring file, no annotations; the
+  diagram appears once the code exists.
+- Parts: MAX98357A only, done end to end (BCLK, LRC, DIN, optional SD/GAIN,
+  plus power).
+- Placement: inside the existing pinout card.
+- Note: at the time of writing the radio code has no audio yet (only the
+  LED and BOOT button), so the diagram stays empty for it until the amp
+  code lands.
+
+**Success criteria.**
+- Writing the usual amp setup (`audio.setPinout(BCLK, LRC, DOUT)`,
+  `i2s.setPins(...)`, or an ESP-IDF I2S pin config) with constants or
+  `#define`s makes the part and wires appear without restarting ESPDock.
+- Every wire is traceable: the legend lists signal, XIAO pin, GPIO and the
+  source file:line it came from.
+- Wiring the code can't know (power) is drawn dashed and labelled as
+  assumed.
+- Problems that break audio are called out: a GPIO not on the header, a
+  GPIO used twice, a symbol ESPDock couldn't resolve.
+
+**Non-goals.** A general netlist or schematic editor; parsing arbitrary
+C++ (macros with arithmetic, runtime pin selection); parts other than the
+MAX98357A in this version; drawing the part to scale.
