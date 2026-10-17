@@ -10,32 +10,12 @@ struct SerialMonitorView: View {
     var body: some View {
         @Bindable var monitor = monitor
         VStack(spacing: 0) {
-            HStack(spacing: 8) {
+            HStack {
                 statusLabel
                 Spacer()
-                Picker("Baud", selection: $monitor.baud) {
-                    ForEach(SerialMonitor.baudRates, id: \.self) { Text(verbatim: String($0)).tag($0) }
-                }
-                .labelsHidden()
-                .fixedSize()
-                .help("Baud rate (ignored by native-USB boards like the ESP32-S3)")
-                Toggle(isOn: $monitor.paused) {
-                    Label("Pause", systemImage: "pause.fill")
-                }
-                .toggleStyle(.button)
-                .labelStyle(.iconOnly)
-                .help("Pause incoming output")
-                Toggle(isOn: $showTimestamps) {
-                    Label("Timestamps", systemImage: "clock")
-                }
-                .toggleStyle(.button)
-                .labelStyle(.iconOnly)
-                .help("Show timestamps")
-                Button { monitor.clear() } label: { Label("Clear", systemImage: "trash") }
-                    .labelStyle(.iconOnly)
-                    .help("Clear output")
             }
-            .padding(10)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
 
             Divider()
 
@@ -69,6 +49,25 @@ struct SerialMonitorView: View {
                     .toggleStyle(.checkbox)
             }
             .padding(10)
+        }
+        // Controls go in the window toolbar, above the inspector column.
+        .toolbar {
+            ToolbarItemGroup {
+                Picker("Baud", selection: $monitor.baud) {
+                    ForEach(SerialMonitor.baudRates, id: \.self) { Text(verbatim: String($0)).tag($0) }
+                }
+                .help("Baud rate (ignored by native-USB boards like the ESP32-S3)")
+                Toggle(isOn: $monitor.paused) {
+                    Label("Pause", systemImage: "pause.fill")
+                }
+                .help("Pause incoming output")
+                Toggle(isOn: $showTimestamps) {
+                    Label("Timestamps", systemImage: "clock")
+                }
+                .help("Show timestamps")
+                Button { monitor.clear() } label: { Label("Clear", systemImage: "trash") }
+                    .help("Clear output")
+            }
         }
     }
 

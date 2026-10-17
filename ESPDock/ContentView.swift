@@ -7,9 +7,10 @@ struct ContentView: View {
     let deployer: Deployer
     let firmware: FirmwareProbe
     let serial: SerialMonitor
-    /// Not persisted: the window always opens tight; it widens only while the
-    /// monitor is shown.
+    /// Not persisted: the window always opens without the monitor.
     @State private var showSerial = false
+    /// Height of the cards, measured; the window (and the inspector) match it.
+    @State private var contentHeight: CGFloat?
 
     static let width: CGFloat = 520
     static let monitorWidth: CGFloat = 440
@@ -19,8 +20,7 @@ struct ContentView: View {
 
         VStack(alignment: .leading, spacing: 12) {
             if let board = monitor.board {
-                StatusCard(board: board, model: model, since: monitor.since, identities: identities,
-                           showSerial: $showSerial)
+                StatusCard(board: board, model: model, since: monitor.since, identities: identities)
 
                 // Project first: it's what you act on; the pinout is reference.
                 ProjectCard(board: board, model: model, projects: projects, deployer: deployer,
@@ -44,31 +44,45 @@ struct ContentView: View {
             }
         }
         .padding(20)
-        .padding(.top, 10)   // clear the floating traffic-light buttons
         .frame(width: Self.width)
         .fixedSize(horizontal: false, vertical: true)
-        // Monitor panel on the right. Not `.inspector`: it reserves its column
-        // even when hidden, so the window could never shrink back. As an
-        // overlay on a widened frame, the panel takes exactly the main
-        // content's height and the window (contentSize resizability) is 520 pt
-        // wide by default, 960 pt only while the monitor shows.
-        .frame(width: showSerial ? Self.width + Self.monitorWidth : Self.width, alignment: .leading)
-        .overlay(alignment: .trailing) {
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
+        .frame(maxHeight: .infinity, alignment: .top)
+        // Native trailing inspector, toggled from the toolbar. Its column
+        // comes on top of the fixed 520 pt content, so the window widens while
+        // the monitor shows (contentSize resizability).
+        .inspector(isPresented: $showSerial) {
+            // Built only while shown: a hidden inspector's content still
+            // contributes its toolbar items to the window toolbar.
             if showSerial {
-                HStack(spacing: 0) {
-                    Divider()
-                    SerialMonitorView(monitor: serial)
+                SerialMonitorView(monitor: serial)
+                    .inspectorColumnWidth(Self.monitorWidth)
+            }
+        }
+        // The inspector reserves its column (and an ideal height) even while
+        // hidden, which made the contentSize window ~900 pt wide and taller
+        // than the cards. Pin the outer size explicitly: 520 pt closed, plus
+        // the column while open; height follows the measured cards.
+        .frame(width: showSerial ? Self.width + Self.monitorWidth : Self.width,
+               height: contentHeight)
+        .toolbar {
+            // No title in the toolbar, so push the toggle to the trailing edge.
+            ToolbarSpacer(.flexible)
+            ToolbarItem(placement: .automatic) {
+                Toggle(isOn: $showSerial) {
+                    Label("Serial Monitor", systemImage: "apple.terminal")
                 }
-                .frame(width: Self.monitorWidth)
-                .background(.background)
-                .transition(.move(edge: .trailing).combined(with: .opacity))
+                .keyboardShortcut("m", modifiers: [.command, .shift])
+                .help("Show live serial output (⇧⌘M)")
+                // Opening needs a board's port; closing must always work (the
+                // monitor stays open, "Waiting for board…", across resets).
+                .disabled(monitor.board == nil && !showSerial)
             }
         }
         .onChange(of: showSerial, initial: true) { _, show in
             if show, let board = monitor.board { serial.start(port: board.port) }
             if !show { serial.stop() }
         }
-        .animation(.smooth(duration: 0.25), value: showSerial)
         .animation(.default, value: monitor.board)
         .animation(.default, value: model)
         .task(id: monitor.board?.macAddress) {
@@ -87,7 +101,6 @@ private struct StatusCard: View {
     let model: BoardModel?
     let since: Date
     let identities: BoardIdentities
-    @Binding var showSerial: Bool
 
     var body: some View {
         GroupBox {
@@ -107,12 +120,6 @@ private struct StatusCard: View {
                     }
                 }
                 Spacer()
-                Toggle(isOn: $showSerial) {
-                    Label("Serial Monitor", systemImage: "apple.terminal")
-                }
-                .toggleStyle(.button)
-                .keyboardShortcut("m", modifiers: [.command, .shift])
-                .help("Show live serial output (⇧⌘M)")
                 if model == nil, board.macAddress != nil, !BoardCatalog.candidates(for: board).isEmpty {
                     Menu("Identify") {
                         ForEach(BoardCatalog.candidates(for: board)) { c in

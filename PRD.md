@@ -93,5 +93,8 @@ may run the local PlatformIO CLI (`~/.platformio/penv/bin/pio`) directly.
   board hash == folder hash). Port opened without DTR/RTS changes → no reset.
 - **Serial monitor** owns the port while shown; version queries go through
   it; Build & Deploy suspends it and it reattaches after the reset. Panel is
-  an overlay on a widened frame, not `.inspector` (which kept the window wide).
-  Not persisted: window opens 520 pt tight, 960 pt only while monitoring.
+  a native `.inspector`, toggled from the window toolbar (⇧⌘M); its controls
+  (baud, pause, timestamps, clear) sit in the toolbar above the column. The
+  inspector reserves its column even while hidden, so the outer frame is
+  pinned explicitly (520 pt closed, 960 pt open; height = measured cards).
+  Not persisted: the window always opens without the monitor.

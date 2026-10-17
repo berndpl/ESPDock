@@ -19,9 +19,9 @@ struct ESPDockApp: App {
             MainWindowContent(appDelegate: appDelegate)
         }
         .windowResizability(.contentSize)
-        // Modern chrome: no title bar strip; traffic lights float over the
-        // content, which is padded to clear them (ContentView).
-        .windowStyle(.hiddenTitleBar)
+        // Unified toolbar holding the Serial Monitor toggle; no title text,
+        // the board card already names what's shown.
+        .windowToolbarStyle(.unified)
         // Stock behaviour: drag the window by its background (title bar is hidden).
         .windowBackgroundDragBehavior(.enabled)
         // Don't restore a widened (monitor-open) size at launch: start tight.
@@ -49,6 +49,7 @@ private struct MainWindowContent: View {
         ContentView(monitor: appDelegate.monitor, identities: appDelegate.identities,
                     projects: appDelegate.projects, deployer: appDelegate.deployer,
                     firmware: appDelegate.firmware, serial: appDelegate.serial)
+            .toolbar(removing: .title)
             .onAppear {
                 appDelegate.openMainWindow = { openWindow(id: "main") }
                 NSApp.setActivationPolicy(.regular)
