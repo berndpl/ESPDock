@@ -175,6 +175,7 @@ final class ProjectLinks {
     /// Live state for the board currently shown.
     private(set) var watchedMAC: String?
     private(set) var currentManifest: [String: String]?
+    private(set) var currentHardwareNotes = ""
     @ObservationIgnored private var watcher: FolderWatcher?
 
     init() {
@@ -248,12 +249,13 @@ final class ProjectLinks {
     func watch(_ board: Board?) {
         let mac = board?.macAddress
         guard let link = board.flatMap({ self.link(for: $0) }) else {
-            watcher = nil; watchedMAC = nil; currentManifest = nil
+            watcher = nil; watchedMAC = nil; currentManifest = nil; currentHardwareNotes = ""
             return
         }
         if mac == watchedMAC, watcher != nil { return }
         watchedMAC = mac
         currentManifest = nil
+        currentHardwareNotes = ""
         watcher = FolderWatcher(path: link.path) { [weak self] in self?.rescan() }
         rescan()
     }
@@ -264,9 +266,11 @@ final class ProjectLinks {
         // Hashing a typical sketch takes milliseconds, but keep it off the main thread.
         Task.detached(priority: .utility) {
             let manifest = CodeFingerprint.manifest(projectAt: url)
+            let hardwareNotes = PeripheralScanner.hardwareNotes(projectAt: url)
             await MainActor.run { [weak self] in
                 guard self?.watchedMAC == mac else { return }
                 self?.currentManifest = manifest
+                self?.currentHardwareNotes = hardwareNotes
             }
         }
     }

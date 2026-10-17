@@ -14,7 +14,14 @@
 // skip begin() and call ESPDock::report() when your code sees "ESPDOCK?".
 #pragma once
 
+#include <Arduino.h>
+
 namespace ESPDock {
-void begin();
+// Opt in to one-client, read-only Wi-Fi logging on TCP port 3232.
+// Query "ESPDOCK WIFI?" over USB to obtain the address and pairing token.
+void begin(bool wifiLogs = false);
 void report();
+// Writes to USB as before; complete lines are also queued for Wi-Fi.
+// Wi-Fi never waits for a slow viewer. Overlong/full-buffer lines are dropped.
+Print& log();
 }

@@ -17,6 +17,7 @@ struct PinoutView: View {
     /// Points per millimetre. 11 pt/mm → 28 pt pin pitch, roomy enough for labels.
     private let scale: CGFloat = 11
     @AppStorage("boardStyle") private var style: BoardStyle = .realistic
+    @State private var highlight = WireHighlight()
 
     var body: some View {
         let geo = BoardGeometry(model: model, scale: scale)
@@ -34,18 +35,27 @@ struct PinoutView: View {
                 // both styles so toggling doesn't shift the layout.
                 .padding(.top, 28)   // clears the 1.8 mm USB-C overhang
                 .padding(.bottom, 30)
+                .overlay(alignment: .topTrailing) {
+                    ComponentInfoButton(name: model.name, summary: "\(model.chip) · \(model.sizeMM) mm",
+                                        resources: [
+                                            ComponentResource(title: "Seeed Wiki", url: model.referenceURL),
+                                            ComponentResource(title: "Schematic (PDF)", url: model.schematicURL, symbol: "doc"),
+                                        ])
+                        .padding(8)
+                }
                 .transformAnchorPreference(key: WireAnchorKey.self, value: .bounds) { $0["board:body"] = $1 }
 
-                if let part = parts.first {
-                    // Bus area: one level per wire between the board and the part.
-                    Color.clear.frame(height: CGFloat(part.connections.count) * WiresOverlay.busGap + 16)
-                    PartBoardView(detected: part, pitch: geo.pitch)
-                        .padding(.bottom, 20)
+                if !parts.isEmpty {
+                    ForEach(parts) { part in
+                        Color.clear.frame(height: CGFloat(part.connections.count) * WiresOverlay.busGap + 20)
+                        PartCellView(detected: part, pitch: geo.pitch)
+                    }
+                    Color.clear.frame(height: 20)
                 }
             }
             .overlayPreferenceValue(WireAnchorKey.self) { anchors in
-                if let part = parts.first {
-                    WiresOverlay(detected: part, anchors: anchors, model: model)
+                if !parts.isEmpty {
+                    WiresOverlay(parts: parts, anchors: anchors, model: model, highlight: $highlight)
                 }
             }
             .background {
@@ -57,14 +67,47 @@ struct PinoutView: View {
             }
 
             // Outside the blueprint paper, so it stays readable in both styles.
-            if let part = parts.first {
-                WiringLegend(detected: part)
+            if !parts.isEmpty {
+                if let (part, connection) = selectedConnection {
+                    HStack {
+                        Text(connection.label(destination: part, parts: parts))
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Clear highlight", systemImage: "xmark.circle") { highlight.selectedID = nil }
+                            .labelStyle(.iconOnly)
+                            .buttonStyle(.plain)
+                            .keyboardShortcut(.escape, modifiers: [])
+                    }
                     .padding(.horizontal, 8)
+                }
+                DisclosureGroup("Wiring details") {
+                    VStack(alignment: .leading, spacing: 14) {
+                        ForEach(parts) { part in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(part.part.name).font(.caption.bold())
+                                WiringLegend(detected: part, parts: parts, highlight: $highlight)
+                            }
+                        }
+                    }
+                    .padding(.top, 8)
+                }
+                .padding(.horizontal, 8)
             }
         }
         .environment(\.boardStyle, style)
         .animation(.easeInOut(duration: 0.25), value: style)
         .animation(.default, value: parts)
+        .onChange(of: parts) { highlight = WireHighlight() }
+    }
+
+    private var selectedConnection: (DetectedPart, PartConnection)? {
+        for part in parts {
+            if let connection = part.connections.first(where: { "\(part.id):\($0.id)" == highlight.selectedID }) {
+                return (part, connection)
+            }
+        }
+        return nil
     }
 
     private func sideColumn(_ side: Pin.Side, geo: BoardGeometry) -> some View {

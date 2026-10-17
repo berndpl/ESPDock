@@ -20,11 +20,20 @@ final class SerialMonitor {
         let time: Date
         let text: String
         let outgoing: Bool
+
+        static let timestampFormat = Date.FormatStyle().hour().minute().second().secondFraction(.fractional(3))
+
+        var displayText: String { outgoing ? "→ \(text)" : text }
+
+        func formatted(showTimestamps: Bool) -> String {
+            showTimestamps ? "\(time.formatted(Self.timestampFormat))\t\(displayText)" : displayText
+        }
     }
 
     enum Status: Equatable {
         case closed
         case open(String)            // port
+        case wireless(String)        // authenticated, read-only endpoint
         case waiting(String)         // board gone (reset/upload); reconnects automatically
         case failed(String)
     }
@@ -43,6 +52,9 @@ final class SerialMonitor {
     @ObservationIgnored private var partial = Data()
     @ObservationIgnored private var nextID = 0
     @ObservationIgnored private var wantedPort: String?
+    @ObservationIgnored private var wirelessEndpoint: String?
+    @ObservationIgnored private var pairingReply: CheckedContinuation<WirelessPairingReply, Error>?
+    @ObservationIgnored private var pairingTimer: Timer?
     @ObservationIgnored private var suspended = false
     /// While waiting for the board to come back, try to reattach once a second
     /// (cheap: one failed open() on a missing path). Covers presses of RESET,
@@ -51,19 +63,27 @@ final class SerialMonitor {
     /// Keeps memory bounded; older lines scroll away.
     private let maxLines = 5000
 
-    var isActive: Bool { wantedPort != nil }
+    var isActive: Bool { wantedPort != nil || wirelessEndpoint != nil }
+    var isWireless: Bool { wirelessEndpoint != nil }
 
     // MARK: Lifecycle
 
     func start(port: String) {
+        guard port.hasPrefix("/dev/cu.") || port.hasPrefix("/dev/tty.") else {
+            status = .failed("A USB serial port is required.")
+            return
+        }
+        wirelessEndpoint = nil
         wantedPort = port
         suspended = false
         open(port)
     }
 
     func stop() {
+        finishPairing(.failure(WirelessError.serial("USB pairing was interrupted.")))
         retryTimer?.invalidate()
         wantedPort = nil
+        wirelessEndpoint = nil
         close()
         status = .closed
     }
@@ -86,6 +106,10 @@ final class SerialMonitor {
     }
 
     func boardGone() {
+        if let endpoint = wirelessEndpoint {
+            status = .waiting(endpoint)
+            return
+        }
         guard let p = wantedPort else { return }
         close()
         status = .waiting(p)
@@ -107,6 +131,53 @@ final class SerialMonitor {
     }
 
     func clear() { lines.removeAll() }
+
+    func outputText(showTimestamps: Bool) -> String {
+        lines.map { $0.formatted(showTimestamps: showTimestamps) }.joined(separator: "\n")
+    }
+
+    func startWireless(endpoint: String) {
+        stop()
+        wirelessEndpoint = endpoint
+        status = .wireless(endpoint)
+    }
+
+    func receiveWireless(_ text: String) {
+        guard wirelessEndpoint != nil else { return }
+        consumeLine(text)
+    }
+
+    func requestPairing(port: String) async throws -> WirelessPairingReply {
+        guard pairingReply == nil else { throw WirelessError.serial("A pairing request is already running.") }
+        let temporary = !isActive
+        if temporary { start(port: port) }
+        defer { if temporary { stop() } }
+        guard status == .open(port), !suspended else {
+            throw WirelessError.serial("The USB monitor is unavailable. Finish the upload or reconnect the board.")
+        }
+        return try await withCheckedThrowingContinuation { continuation in
+            pairingReply = continuation
+            pairingTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: false) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.finishPairing(.failure(WirelessError.serial(
+                        "No Wi-Fi pairing response. Update lib/ESPDock, call ESPDock::begin(true), and deploy once over USB.")))
+                }
+            }
+            let bytes = Array("\nESPDOCK WIFI?\n".utf8)
+            let written = bytes.withUnsafeBufferPointer { write(fd, $0.baseAddress, $0.count) }
+            if written != bytes.count {
+                finishPairing(.failure(WirelessError.serial("Couldn't send the USB pairing request. Reconnect and try again.")))
+            }
+        }
+    }
+
+    private func finishPairing(_ result: Result<WirelessPairingReply, Error>) {
+        pairingTimer?.invalidate()
+        pairingTimer = nil
+        let continuation = pairingReply
+        pairingReply = nil
+        continuation?.resume(with: result)
+    }
 
     func send(_ text: String, echo: Bool = true) {
         guard fd >= 0 else { return }
@@ -148,6 +219,7 @@ final class SerialMonitor {
     }
 
     private func close() {
+        finishPairing(.failure(WirelessError.serial("The USB connection closed during pairing.")))
         source?.cancel()      // closes the fd in its cancel handler
         source = nil
         fd = -1
@@ -168,11 +240,20 @@ final class SerialMonitor {
             partial.removeSubrange(partial.startIndex...nl)
             guard !lineData.isEmpty else { continue }
             let text = String(decoding: lineData, as: UTF8.self)
-            if text.hasPrefix("ESPDOCK {"), let report = SerialProbe.parse(Data(lineData)) {
-                onReport?(report)
-            }
-            if !paused { append(text, outgoing: false) }
+            consumeLine(text)
         }
+    }
+
+    private func consumeLine(_ text: String) {
+        if let prefix = text.range(of: "ESPDOCK WIFI ") {
+            // A reply can follow another task's unfinished log line.
+            finishPairing(Result { try WirelessPairingReply.decode(Data(text[prefix.upperBound...].utf8)) })
+            return
+        }
+        if text.hasPrefix("ESPDOCK {"), let report = SerialProbe.parse(Data(text.utf8)) {
+            onReport?(report)
+        }
+        if !paused { append(text, outgoing: false) }
     }
 
     private func append(_ text: String, outgoing: Bool) {

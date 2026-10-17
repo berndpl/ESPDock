@@ -33,6 +33,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let deployer = Deployer()
     let firmware = FirmwareProbe()
     let serial = SerialMonitor()
+    let wireless = WirelessController()
     /// Captured from the main window's environment. SwiftUI's OpenWindowAction
     /// is app-scoped, so it stays usable after that window has closed.
     var openMainWindow: (() -> Void)?
@@ -46,8 +47,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Serial monitor ⇄ firmware probe ⇄ deployer share one port.
         firmware.monitor = serial
         serial.onReport = { [weak self] report in
-            self?.firmware.receive(report, mac: self?.monitor.board?.macAddress)
+            guard let self else { return }
+            self.firmware.receive(report, mac: Board.preferred(usb: self.monitor.board, wireless: self.wireless.board)?.macAddress)
         }
+        wireless.onIdentity = { [weak self] report, mac in self?.firmware.receive(report, mac: mac) }
+        wireless.onLine = { [weak self] line in
+            guard let self, self.monitor.board == nil else { return }
+            self.serial.receiveWireless(line)
+        }
+        wireless.onConnected = { [weak self] in
+            guard let self, self.monitor.board == nil else { return }
+            if self.serial.isWireless, let board = self.wireless.board {
+                self.serial.startWireless(endpoint: board.port)
+            }
+            wireless.onDisconnected = { [weak self] in
+                guard let self, self.monitor.board == nil, self.serial.isWireless else { return }
+                self.serial.boardGone()
+            }
+            if AppSettings.bringToFront { self.showMainWindow() }
+        }
+        wireless.resume()
         deployer.willUsePort = { [weak self] in self?.serial.suspend() }
         deployer.didReleasePort = { [weak self] port in self?.serial.boardAvailable(port: port) }
         #if DEBUG

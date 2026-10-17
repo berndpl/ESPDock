@@ -20,6 +20,9 @@ targets:
     platform: macOS
     sources:
       - ESPDock
+      - path: ESPDock/Assets.xcassets/AppIcon.icon
+        type: file
+        buildPhase: resources
       # Firmware library copied into projects by "Add Version Reporting…"
       - path: FirmwareLib
         type: folder
@@ -27,9 +30,11 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: de.plontsch.ESPDock
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: ESPDock
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.developer-tools
+        INFOPLIST_KEY_NSLocalNetworkUsageDescription: Connect to a paired ESP32 on your local network for read-only logs and firmware identity.
         # No App Sandbox: the app must read IOKit serial devices and (later)
         # run ~/.platformio/penv/bin/pio. Personal tool, not distributed.
         ENABLE_APP_SANDBOX: NO
@@ -50,3 +55,13 @@ targets:
           BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           /usr/libexec/PlistBuddy -c "Set :BuildDate ${BUILD_DATE}" "${PLIST}" 2>/dev/null \
             || /usr/libexec/PlistBuddy -c "Add :BuildDate string ${BUILD_DATE}" "${PLIST}"
+  ESPDockTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - ESPDockTests
+    dependencies:
+      - target: ESPDock
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES

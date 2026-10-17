@@ -5,6 +5,7 @@ struct SerialMonitorView: View {
     let monitor: SerialMonitor
     @State private var input = ""
     @State private var autoscroll = true
+    @State private var copyFailed = false
     @AppStorage("serialShowTimestamps") private var showTimestamps = true
 
     var body: some View {
@@ -41,7 +42,7 @@ struct SerialMonitorView: View {
             Divider()
 
             HStack(spacing: 8) {
-                TextField("Send to board", text: $input)
+                TextField(monitor.isWireless ? "Wi-Fi monitoring is read-only" : "Send to board", text: $input)
                     .textFieldStyle(.roundedBorder)
                     .onSubmit(send)
                     .disabled(!isOpen)
@@ -57,6 +58,7 @@ struct SerialMonitorView: View {
                     ForEach(SerialMonitor.baudRates, id: \.self) { Text(verbatim: String($0)).tag($0) }
                 }
                 .help("Baud rate (ignored by native-USB boards like the ESP32-S3)")
+                .disabled(monitor.isWireless)
                 Toggle(isOn: $monitor.paused) {
                     Label("Pause", systemImage: "pause.fill")
                 }
@@ -68,16 +70,37 @@ struct SerialMonitorView: View {
                 Button { monitor.clear() } label: { Label("Clear", systemImage: "trash") }
                     .help("Clear output")
             }
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    copyFailed = !copyOutput(showTimestamps: showTimestamps)
+                } label: {
+                    Label("Copy Output", systemImage: "doc.on.doc")
+                }
+                .help("Copy all buffered output to the clipboard")
+                .accessibilityIdentifier("copy-monitor-output")
+                .disabled(monitor.lines.isEmpty)
+            }
         }
+        .alert("Couldn't Copy Output", isPresented: $copyFailed) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("The clipboard couldn't be updated. Please try again.")
+        }
+    }
+
+    func copyOutput(showTimestamps: Bool, to pasteboard: NSPasteboard = .general) -> Bool {
+        let output = monitor.outputText(showTimestamps: showTimestamps)
+        pasteboard.clearContents()
+        return pasteboard.setString(output, forType: .string)
     }
 
     private func row(_ line: SerialMonitor.Line) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             if showTimestamps {
-                Text(line.time, format: .dateTime.hour().minute().second().secondFraction(.fractional(3)))
+                Text(line.time, format: SerialMonitor.Line.timestampFormat)
                     .foregroundStyle(.tertiary)
             }
-            Text(line.outgoing ? "→ \(line.text)" : line.text)
+            Text(line.displayText)
                 .foregroundStyle(line.outgoing ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
         }
         .font(.system(size: 11, design: .monospaced))
@@ -92,6 +115,9 @@ struct SerialMonitorView: View {
         switch monitor.status {
         case .open(let port):
             Label((port as NSString).lastPathComponent, systemImage: "circle.fill")
+                .labelStyle(StatusDot(color: .green))
+        case .wireless(let endpoint):
+            Label("Wi-Fi · \(endpoint) · Read-only", systemImage: "circle.fill")
                 .labelStyle(StatusDot(color: .green))
         case .waiting:
             Label("Waiting for board…", systemImage: "circle.fill")
@@ -110,7 +136,9 @@ struct SerialMonitorView: View {
         ContentUnavailableView {
             Label("No Output Yet", systemImage: "apple.terminal")
         } description: {
-            Text("Serial.print() output from the board appears here.")
+            Text(monitor.isWireless
+                 ? "ESPDock::log() output appears here after Wi-Fi connects. Early boot and dropped lines require USB."
+                 : "Serial.print() output from the board appears here.")
         }
     }
 

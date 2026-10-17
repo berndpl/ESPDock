@@ -103,6 +103,10 @@ struct ProjectCard: View {
 
         status(link)
         versionReportingRow(link)
+        if !board.supportsUpload, case .changed = codeStatus(link) {
+            Text("Wi-Fi is read-only. Connect USB to deploy; local builds are still available in your editor.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
 
         if showLog, !deployer.log.isEmpty, deployer.targetMAC == board.macAddress {
             LogView(lines: deployer.log)
@@ -312,7 +316,8 @@ struct ProjectCard: View {
         }
         .buttonStyle(.borderedProminent)
         .keyboardShortcut("r", modifiers: .command)
-        .help("Build \(link.environment) and upload to \(board.port)  (⌘R)")
+        .disabled(!board.supportsUpload)
+        .help(board.supportsUpload ? "Build \(link.environment) and upload to \(board.port)  (⌘R)" : "Connect USB to deploy. Wi-Fi uploads are not supported.")
     }
 
     private var running: some View {

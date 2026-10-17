@@ -3,8 +3,9 @@ import IOKit
 import IOKit.serial
 import Observation
 
-/// A USB serial port that looks like an ESP32 board.
+/// An ESP32 reached over USB or an authenticated, paired Wi-Fi session.
 struct Board: Equatable, Identifiable {
+    enum Transport: Equatable { case usb, wifi }
     var id: String { port }
     let port: String          // e.g. /dev/cu.usbmodem1101
     let vendorID: Int
@@ -15,12 +16,24 @@ struct Board: Equatable, Identifiable {
     let connection: USBConnection?
     /// Mac port + cable; nil when behind a hub or not determinable.
     var macPort: MacPort?
+    var transport: Transport = .usb
+    var pairedBoardID: String?
+
+    var supportsUpload: Bool { transport == .usb }
+
+    static func wireless(host: String, port: UInt16, boardID: String) -> Board {
+        Board(port: "\(host):\(port)", vendorID: 0, productID: 0,
+              serialNumber: nil, usbProductName: nil, usbVendorName: nil,
+              connection: nil, transport: .wifi, pairedBoardID: boardID)
+    }
+
+    static func preferred(usb: Board?, wireless: Board?) -> Board? { usb ?? wireless }
 
     var vidPid: String { String(format: "%04X:%04X", vendorID, productID) }
 
     /// Espressif's own USB vendor ID: the board itself speaks USB (S2/S3/C3/C6…),
     /// so this is certainly an ESP32. Bridge chips are only a strong hint.
-    var isCertainlyESP32: Bool { vendorID == BoardMonitor.espressifVendorID }
+    var isCertainlyESP32: Bool { transport == .wifi || vendorID == BoardMonitor.espressifVendorID }
 
     /// Human-readable description of the USB interface, from a small table of
     /// the IDs seen on common ESP32 dev boards (checked against the USB ID
@@ -42,6 +55,7 @@ struct Board: Equatable, Identifiable {
     /// ("AA:BB:CC:DD:EE:FF"), which uniquely identifies the board. Used later to
     /// remember which project belongs to which board.
     var macAddress: String? {
+        if transport == .wifi { return pairedBoardID }
         guard isCertainlyESP32, let s = serialNumber,
               s.split(separator: ":").count == 6 else { return nil }
         return s
@@ -58,6 +72,7 @@ struct Board: Equatable, Identifiable {
 @MainActor
 @Observable
 final class BoardMonitor {
+    typealias Snapshot = (boards: [Board], otherPorts: [String])
     nonisolated static let espressifVendorID = 0x303A
 
     /// Vendor IDs considered ESP32 candidates: Espressif native USB plus the
@@ -82,6 +97,8 @@ final class BoardMonitor {
     /// already present at launch, since it's set after init's first scan).
     @ObservationIgnored var onBoardConnected: ((Board) -> Void)?
     @ObservationIgnored private var disconnectPending: Task<Void, Never>?
+    @ObservationIgnored private var disconnectDeadline: ContinuousClock.Instant?
+    @ObservationIgnored private let scan: @MainActor () -> Snapshot?
 
     // nonisolated so deinit can release them; otherwise only touched on the main run loop.
     @ObservationIgnored nonisolated(unsafe) private var notifyPort: IONotificationPortRef?
@@ -92,7 +109,8 @@ final class BoardMonitor {
     /// serial notifications above can't tell us about it. No process spawns.
     @ObservationIgnored nonisolated(unsafe) private var blockedPortTimer: Timer?
 
-    init() {
+    init(scan: (@MainActor () -> Snapshot?)? = nil) {
+        self.scan = scan ?? Self.scanPorts
         startWatching()
         rescan()
         blockedPortTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
@@ -153,11 +171,11 @@ final class BoardMonitor {
     private static let auditNoBoard = CommandLine.arguments.contains("-auditNoBoard")
     #endif
 
-    func rescan() {
+    private static func scanPorts() -> Snapshot? {
         var iterator: io_iterator_t = 0
         guard IOServiceGetMatchingServices(kIOMainPortDefault,
                                            IOServiceMatching(kIOSerialBSDServiceValue),
-                                           &iterator) == KERN_SUCCESS else { return }
+                                           &iterator) == KERN_SUCCESS else { return nil }
         defer { IOObjectRelease(iterator) }
 
         var found: [Board] = []
@@ -189,23 +207,34 @@ final class BoardMonitor {
                                              serialNumber: candidate.serialNumber)
             found.append(candidate)
         }
+        return (found, others)
+    }
 
+    func rescan() {
+        guard let (found, others) = scan() else { return }
         // One board at a time (PRD non-goal): prefer a certain ESP32 over a bridge.
         let newBoard = found.sorted { $0.isCertainlyESP32 && !$1.isCertainlyESP32 }.first
         // Grace period: an upload ends with a hard reset that drops USB for
         // ~0.5 s. Only treat a disconnect as real if it lasts 2 s, so the
         // window doesn't flash "No board" (and lose the deploy UI) mid-upload.
-        if newBoard == nil, board != nil, disconnectPending == nil {
-            disconnectPending = Task { [weak self] in
-                try? await Task.sleep(for: .seconds(2))
-                guard let self, !Task.isCancelled else { return }
-                self.disconnectPending = nil
-                self.rescan()
+        if newBoard == nil, board != nil {
+            if disconnectPending == nil {
+                let deadline = ContinuousClock.now.advanced(by: .seconds(2))
+                disconnectDeadline = deadline
+                disconnectPending = Task { [weak self] in
+                    try? await Task.sleep(until: deadline, clock: .continuous)
+                    guard let self, !Task.isCancelled else { return }
+                    self.rescan()
+                }
             }
-            otherPorts = others.sorted()
-            return
+            if let deadline = disconnectDeadline, ContinuousClock.now < deadline {
+                otherPorts = others.sorted()
+                return
+            }
         }
-        if newBoard != nil { disconnectPending?.cancel(); disconnectPending = nil }
+        disconnectPending?.cancel()
+        disconnectPending = nil
+        disconnectDeadline = nil
 
         if newBoard != board {
             let wasConnected = board != nil

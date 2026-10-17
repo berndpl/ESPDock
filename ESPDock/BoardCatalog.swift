@@ -73,7 +73,7 @@ enum BoardCatalog {
     /// enumerate as 303A:1001, so the model can't be detected — the user picks
     /// it once and it's remembered per MAC address.
     static func candidates(for board: Board) -> [BoardModel] {
-        board.vendorID == BoardMonitor.espressifVendorID ? [xiaoESP32S3] : []
+        board.isCertainlyESP32 ? [xiaoESP32S3] : []
     }
 
     static func model(id: String) -> BoardModel? {

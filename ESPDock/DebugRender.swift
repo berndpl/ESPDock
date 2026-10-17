@@ -8,6 +8,69 @@ import SwiftUI
 enum DebugRender {
     @MainActor static func runIfRequested() {
         let args = CommandLine.arguments
+        // Exercises real USB pairing and Wi-Fi logs without displaying secrets.
+        if let i = args.firstIndex(of: "--verify-wireless"), i + 1 < args.count {
+            let monitor = BoardMonitor()
+            guard let board = monitor.board, board.port == args[i + 1],
+                  let link = ProjectLinks().link(for: board) else {
+                print("Connect the linked USB board before verifying Wi-Fi.")
+                exit(1)
+            }
+            let wireless = WirelessController()
+            let serial = SerialMonitor()
+            let expectedSource = CodeFingerprint.combined(CodeFingerprint.manifest(projectAt: link.url))
+            var finished = false, validIdentity = false, logLines = 0
+            wireless.onIdentity = { report, localID in
+                validIdentity = localID == board.macAddress && report.source == expectedSource
+                print(validIdentity ? "Authenticated Wi-Fi identity matches the USB project and current source."
+                      : "Wi-Fi identity does not match the USB project/current source.")
+                if !validIdentity { finished = true }
+            }
+            wireless.onLine = { _ in
+                logLines += 1
+                if logLines >= 2 { finished = true }
+            }
+            wireless.onDisconnected = { [weak wireless] in
+                if case .failed(let message)? = wireless?.session.status {
+                    print(message)
+                }
+            }
+            Task { @MainActor in
+                do { try await wireless.pairUSB(board, serial: serial) }
+                catch {
+                    print("USB pairing failed: \(error.localizedDescription)")
+                    finished = true
+                }
+            }
+            let deadline = Date().addingTimeInterval(20)
+            while !finished, Date() < deadline {
+                RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+            }
+            let firstConnection = validIdentity && logLines >= 2 && !serial.isActive
+            wireless.disconnect()
+            let savedWireless = WirelessController()
+            if firstConnection {
+                finished = false
+                validIdentity = false
+                logLines = 0
+                savedWireless.onIdentity = wireless.onIdentity
+                savedWireless.onLine = wireless.onLine
+                savedWireless.resume(allowKeychainPrompt: true)
+                let reconnectDeadline = Date().addingTimeInterval(20)
+                while !finished, Date() < reconnectDeadline {
+                    RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+                }
+            }
+            let success = firstConnection && validIdentity && logLines >= 2 && !serial.isActive
+            if savedWireless.waitingForKeychain { print("Waiting for macOS Keychain approval.") }
+            if let error = savedWireless.error ?? wireless.error { print(error) }
+            savedWireless.disconnect()
+            wireless.disconnect()
+            print("Wi-Fi application log lines: \(logLines); USB monitor closed: \(!serial.isActive).")
+            if success { print("Saved pairing reconnected using Keychain without another USB query.") }
+            print(success ? "Live wireless verification passed." : "Live wireless verification failed or timed out.")
+            exit(success ? 0 : 1)
+        }
         // --probe <port>: print the firmware's ESPDock report and exit.
         if let i = args.firstIndex(of: "--probe"), i + 1 < args.count {
             if let r = SerialProbe.query(port: args[i + 1]) {
@@ -44,7 +107,7 @@ enum DebugRender {
                     case let .code(file, line, expr): from = "\(file):\(line) \(expr)"
                     case let .assumed(why): from = "assumed — \(why)"
                     }
-                    print("  \(c.partPin) ← \(c.end.boardPin)\(c.end.gpio.map { " (GPIO\($0))" } ?? "")  \(from)")
+                    print("  \(c.partPin) ← \(c.end.partID.map { "\($0) " } ?? "")\(c.end.boardPin)\(c.end.gpio.map { " (GPIO\($0))" } ?? "")  \(from)")
                 }
                 for issue in p.issues { print("  ! \(issue)") }
             }
@@ -54,11 +117,14 @@ enum DebugRender {
         let serialMode = args.contains("--render-serial")
         // --render-guide <out.png> [dark|light] renders the D4 pin popover.
         let guideMode = args.contains("--render-guide")
+        // --render-wifi <out.png> [dark|light]: the USB/manual pairing sheet.
+        let wifiMode = args.contains("--render-wifi")
         // --render-wiring <out.png> [dark|light] <project> [blueprint]: the pinout
         // card with the external parts found in that project's code.
         let wiringMode = args.contains("--render-wiring")
         guard let i = args.firstIndex(of: serialMode ? "--render-serial"
                                       : guideMode ? "--render-guide"
+                                      : wifiMode ? "--render-wifi"
                                       : wiringMode ? "--render-wiring" : "--render-pinout"),
               i + 1 < args.count else { return }
         let dark = !serialMode && args.count > i + 2 && args[i + 2] == "dark"
@@ -93,9 +159,12 @@ enum DebugRender {
             ? AnyView(SerialMonitorView(monitor: serial).frame(width: 440, height: 360))
             : guideMode
             ? AnyView(PinGuideView(guide: .forPin(BoardCatalog.xiaoESP32S3.pins[4])))
+            : wifiMode
+            ? AnyView(WirelessSetupView(wireless: WirelessController(), usb: monitor.board,
+                                       serial: serial, projects: projects, deploying: false))
             : AnyView(ContentView(monitor: monitor, identities: BoardIdentities(),
                                   projects: projects, deployer: Deployer(), firmware: firmware,
-                                  serial: SerialMonitor()))
+                                  serial: SerialMonitor(), wireless: WirelessController()))
         let view = content
             .background(dark ? Color(white: 0.12) : Color(white: 0.97))
             .environment(\.colorScheme, dark ? .dark : .light)
