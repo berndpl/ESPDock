@@ -111,7 +111,20 @@ private struct PinGuidePopover: ViewModifier {
                 PinGuideView(guide: guide)
             }
             .onChange(of: shown) { _, isShown in
-                if !isShown { pinned = false }
+                guard !isShown else { return }
+                // The popover is transient: a click on the pin while its
+                // hover popover is up is consumed to dismiss it, so the tap
+                // gesture never fires and "click to keep open" closed it
+                // instead (found in the audit). A click-dismissal with the
+                // pointer still over this pin therefore means "pin it".
+                // Esc (a key event) and clicks elsewhere still close it.
+                let byClick = [.leftMouseDown, .leftMouseUp].contains(NSApp.currentEvent?.type)
+                if hovering, !pinned, byClick {
+                    pinned = true
+                    Task { shown = true }
+                } else {
+                    pinned = false
+                }
             }
     }
 }

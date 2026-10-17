@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0B98E04ED0F0ACEE78FC3EDD /* BackgroundMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 167EB1E2C6828E0A97346F19 /* BackgroundMode.swift */; };
+		1B481CA90BB9B65A00BA2A5D /* CodingAgent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61AAF9578C4778F40428155E /* CodingAgent.swift */; };
 		1D718F32700308719B8AF93D /* SerialMonitorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8383B0FBFD477DAB3EFFFCE /* SerialMonitorView.swift */; };
 		22FD6EEE6AE05E4240F1CBA6 /* FirmwareReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41FF2474A1D85AB398BA241 /* FirmwareReport.swift */; };
 		267B0E91D0121F7675792F0E /* MacPort.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3D72331ABEEBADD066ED7A2 /* MacPort.swift */; };
@@ -38,6 +39,7 @@
 		35232B794F9B5279832A5F3E /* DebugRender.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugRender.swift; sourceTree = "<group>"; };
 		4DCFD852859D345B2A989B0D /* PinGuide.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinGuide.swift; sourceTree = "<group>"; };
 		5B6838D7646364B5D7E60886 /* USBConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USBConnection.swift; sourceTree = "<group>"; };
+		61AAF9578C4778F40428155E /* CodingAgent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodingAgent.swift; sourceTree = "<group>"; };
 		73FABDE74D11BB7D61390114 /* ProjectCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectCard.swift; sourceTree = "<group>"; };
 		7E8242AAA06860182443EEC7 /* BoardCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardCatalog.swift; sourceTree = "<group>"; };
 		7F3EC419AEAF97109B5D1E72 /* FirmwareLib */ = {isa = PBXFileReference; lastKnownFileType = folder; path = FirmwareLib; sourceTree = SOURCE_ROOT; };
@@ -73,6 +75,7 @@
 				7E8242AAA06860182443EEC7 /* BoardCatalog.swift */,
 				AAF8D38049AD60204C43127D /* BoardMonitor.swift */,
 				0705F2B2984E4F6825A9C4E1 /* BuildInfo.swift */,
+				61AAF9578C4778F40428155E /* CodingAgent.swift */,
 				307450D8514BA779E81DA56B /* ContentView.swift */,
 				35232B794F9B5279832A5F3E /* DebugRender.swift */,
 				8AA5BE306745C4816454CD19 /* Deployer.swift */,
@@ -199,6 +202,7 @@
 				BE967B1AE49E649BFBDBEDFA /* BoardCatalog.swift in Sources */,
 				7BDBAA975D0E480B95B7A1E6 /* BoardMonitor.swift in Sources */,
 				C839618B4D1BC2516379CC62 /* BuildInfo.swift in Sources */,
+				1B481CA90BB9B65A00BA2A5D /* CodingAgent.swift in Sources */,
 				F90E73325ABC3DCC2818B143 /* ContentView.swift in Sources */,
 				5108D452AAC2FB29652B9D44 /* DebugRender.swift in Sources */,
 				AB5E3F7E51F00C286522FEAE /* Deployer.swift in Sources */,

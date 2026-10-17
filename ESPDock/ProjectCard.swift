@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// The linked PlatformIO project for the connected board: open in VS Code,
+/// The linked PlatformIO project for the connected board: edit it with the
+/// AI tool used on it (or VS Code),
 /// see whether the code changed since the last deploy, and ▶︎ build + upload.
 struct ProjectCard: View {
     let board: Board
@@ -10,6 +11,8 @@ struct ProjectCard: View {
     let firmware: FirmwareProbe
     @State private var error: String?
     @State private var showLog = false
+    /// AI coding tools used on the linked project, most recent first.
+    @State private var agents: [AgentUse] = []
 
     var body: some View {
         GroupBox {
@@ -46,17 +49,19 @@ struct ProjectCard: View {
     @ViewBuilder private func linked(_ link: ProjectLink) -> some View {
         HStack(spacing: 10) {
             Image(systemName: "folder.fill").foregroundStyle(.secondary)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(link.name).font(.headline)
-                Text("env: \(link.environment)")
-                    .font(.caption.monospaced()).foregroundStyle(.secondary)
-            }
-            .help(link.path)
+            Text(link.name).font(.headline)
+                .help("\(link.path)\nenv: \(link.environment)")
             Spacer()
-            // Native split button: click opens VS Code, the chevron holds
-            // the project options.
+            // Native split button: click edits with the AI used on this
+            // project (its CLI in Terminal); the chevron holds the rest.
+            let primary = agents.first?.agent
             Menu {
-                Button("Open in VS Code") { VSCode.open(link.url) }
+                ForEach(agents.dropFirst(), id: \.agent) { use in
+                    Button(use.agent.name) { use.agent.open(link.url) }
+                }
+                if primary != nil {
+                    Button("Open in VS Code") { VSCode.open(link.url) }
+                }
                 Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([link.url]) }
                 Divider()
                 let envs = projects.environments(for: board)
@@ -70,12 +75,22 @@ struct ProjectCard: View {
                 Button("Change Project…") { error = projects.chooseProject(for: board, model: model) }
                 Button("Unlink Project", role: .destructive) { projects.unlink(board) }
             } label: {
-                Label("Open in VS Code", systemImage: "chevron.left.forwardslash.chevron.right")
+                if let primary {
+                    Label(primary.name, systemImage: "apple.terminal")
+                } else {
+                    Label("Open in VS Code", systemImage: "chevron.left.forwardslash.chevron.right")
+                }
             } primaryAction: {
-                VSCode.open(link.url)
+                if let primary { primary.open(link.url) } else { VSCode.open(link.url) }
             }
-            .help(VSCode.isInstalled ? "Open \(link.name) in Visual Studio Code" : "VS Code not found — opens in Finder")
+            .help(primaryHelp(link))
             .fixedSize()
+        }
+        // Off the main actor: scanning Copilot's session folders reads a few
+        // thousand small files. Once per linked project.
+        .task(id: link.path) {
+            let url = link.url
+            agents = await Task.detached { AgentDetector.detect(projectAt: url) }.value
         }
 
         Divider()
@@ -86,6 +101,16 @@ struct ProjectCard: View {
         if showLog, !deployer.log.isEmpty, deployer.targetMAC == board.macAddress {
             LogView(lines: deployer.log)
         }
+    }
+
+    /// Says why this tool was picked, so the choice isn't a mystery.
+    private func primaryHelp(_ link: ProjectLink) -> String {
+        guard let use = agents.first else {
+            return VSCode.isInstalled ? "Open \(link.name) in Visual Studio Code"
+                                      : "VS Code not found — opens in Finder"
+        }
+        let when = use.lastUsed.formatted(.relative(presentation: .named))
+        return "Starts \(use.agent.command) in Terminal in \(link.name) · last used \(when)"
     }
 
     // MARK: Status + ▶︎

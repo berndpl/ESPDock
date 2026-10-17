@@ -149,6 +149,10 @@ final class BoardMonitor {
 
     // MARK: - Scanning
 
+    #if DEBUG
+    private static let auditNoBoard = CommandLine.arguments.contains("-auditNoBoard")
+    #endif
+
     func rescan() {
         var iterator: io_iterator_t = 0
         guard IOServiceGetMatchingServices(kIOMainPortDefault,
@@ -160,6 +164,11 @@ final class BoardMonitor {
         var others: [String] = []
         while case let service = IOIteratorNext(iterator), service != 0 {
             defer { IOObjectRelease(service) }
+            #if DEBUG
+            // Audit hook: `-auditNoBoard` hides every port, so the empty state
+            // can be captured without unplugging the board.
+            if Self.auditNoBoard { continue }
+            #endif
             guard let path = Self.property(service, kIOCalloutDeviceKey) as? String else { continue }
             guard let vid = Self.usbProperty(service, "idVendor") as? Int,
                   let pid = Self.usbProperty(service, "idProduct") as? Int,

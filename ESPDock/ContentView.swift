@@ -47,7 +47,10 @@ struct ContentView: View {
         .frame(width: Self.width)
         .fixedSize(horizontal: false, vertical: true)
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
-        .frame(maxHeight: .infinity, alignment: .top)
+        // Pinned top-leading in the inspector's main column: while the window
+        // resizes, that column is briefly wider than the cards, which would
+        // otherwise flash centered.
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         // Native trailing inspector, toggled from the toolbar. Its column
         // comes on top of the fixed 520 pt content, so the window widens while
         // the monitor shows (contentSize resizability).
@@ -69,9 +72,24 @@ struct ContentView: View {
             // No title in the toolbar, so push the toggle to the trailing edge.
             ToolbarSpacer(.flexible)
             ToolbarItem(placement: .automatic) {
-                Toggle(isOn: $showSerial) {
+                // A Button, not a Toggle: SwiftUI toolbar toggles expose no
+                // accessibility name (VoiceOver read just "toggle button").
+                Button {
+                    // No SwiftUI animation: the system already animates the
+                    // window resize, and the inspector's own slide on top of
+                    // it pushed the cards off the left edge mid-transition.
+                    // The resize alone reveals/covers the column cleanly.
+                    var t = Transaction()
+                    t.disablesAnimations = true
+                    withTransaction(t) { showSerial.toggle() }
+                } label: {
                     Label("Serial Monitor", systemImage: "apple.terminal")
+                        // On-state cue a plain Button doesn't have: filled
+                        // and tinted while the monitor is open.
+                        .symbolVariant(showSerial ? .fill : .none)
+                        .foregroundStyle(showSerial ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
                 }
+                .accessibilityAddTraits(showSerial ? .isSelected : [])
                 .keyboardShortcut("m", modifiers: [.command, .shift])
                 .help("Show live serial output (⇧⌘M)")
                 // Opening needs a board's port; closing must always work (the
@@ -134,10 +152,19 @@ private struct StatusCard: View {
         .help(tooltip)
         .contextMenu {
             if board.macAddress != nil {
-                ForEach(BoardCatalog.candidates(for: board)) { c in
-                    Button(c.name) { identities.assign(c, to: board) }
+                // Inline picker so the current model carries a checkmark.
+                Picker("Board Model", selection: Binding(
+                    get: { model },
+                    set: { identities.assign($0, to: board) })) {
+                    ForEach(BoardCatalog.candidates(for: board)) { c in
+                        Text(c.name).tag(Optional(c))
+                    }
                 }
-                if model != nil { Button("Forget Model") { identities.assign(nil, to: board) } }
+                .pickerStyle(.inline)
+                if model != nil {
+                    Divider()
+                    Button("Forget Model") { identities.assign(nil, to: board) }
+                }
             }
         }
     }

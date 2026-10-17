@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "platform": "macos",
+  "_README": "ESPDock audit plan. Driven on the real Mac app with a connected XIAO ESP32S3 by .audit/run_macos_audit.sh (System Events clicks/keys + CGEvent hover); screenshots per moment, one screen recording per flow. Edge cases are seeded via DEBUG launch args.",
+  "scenarios": [
+    {"id": "serialMonitor", "title": "Serial monitor",
+     "description": "Open the monitor from the toolbar, query the board, pause, then close it again.",
+     "moments": [
+       {"id": "launch", "title": "Launched, board connected"},
+       {"id": "monitorOpen", "title": "Monitor open"},
+       {"id": "queried", "title": "Sent ESPDOCK?"},
+       {"id": "paused", "title": "Paused"},
+       {"id": "monitorClosed", "title": "Monitor closed"}
+     ]},
+    {"id": "pinout", "title": "Pinout and pin guides",
+     "description": "Hover a pin for its guide, click to keep it, then switch the board art style.",
+     "moments": [
+       {"id": "hoverPin", "title": "Hover D4"},
+       {"id": "pinnedGuide", "title": "Guide kept open"},
+       {"id": "blueprint", "title": "Blueprint style"},
+       {"id": "realistic", "title": "Back to realistic"}
+     ]},
+    {"id": "menus", "title": "Project and board menus",
+     "description": "Open the project actions menu and the board context menu.",
+     "moments": [
+       {"id": "projectMenu", "title": "Project actions menu"},
+       {"id": "boardMenu", "title": "Board context menu"}
+     ]},
+    {"id": "appWindows", "title": "Settings and About",
+     "description": "Open Settings (Cmd-,) and the About panel.",
+     "moments": [
+       {"id": "settings", "title": "Settings"},
+       {"id": "about", "title": "About"}
+     ]}
+  ],
+  "edgeCases": [
+    {"id": "noBoard", "title": "No board connected"},
+    {"id": "darkWindow", "title": "Dark appearance (offscreen render)"}
+  ]
+}
