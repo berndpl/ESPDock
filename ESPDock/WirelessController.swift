@@ -11,6 +11,10 @@ struct WirelessPairingReply: Decodable {
     static func decode(_ data: Data) throws -> Self {
         struct Rejection: Decodable { let error: String }
         if let rejection = try? JSONDecoder().decode(Rejection.self, from: data) {
+            // The firmware's error strings (FirmwareLib WirelessLogs.cpp
+            // pairingReport) map to the cases auto-pairing acts on.
+            if rejection.error.contains("begin(true)") { throw WirelessError.wifiLogsDisabled }
+            if rejection.error.contains("not connected to Wi-Fi") { throw WirelessError.boardNotOnWiFi }
             throw WirelessError.invalidPairing(rejection.error)
         }
         guard let reply = try? JSONDecoder().decode(Self.self, from: data),
@@ -42,7 +46,7 @@ enum WirelessCredentialError: LocalizedError {
     case authorizationRequired
 
     var errorDescription: String? {
-        "Choose Allow Wi-Fi to use the pairing token from Keychain for this app session."
+        "Choose Connect over Wi-Fi to use the saved pairing for this app session."
     }
 }
 
@@ -103,6 +107,20 @@ final class WirelessController {
     private(set) var reconnecting = false
     private(set) var waitingForKeychain = false
     private(set) var requiresKeychainAuthorization = false
+
+    /// What automatic USB pairing learned about the connected board's firmware.
+    /// Drives the single hint in the project card; nothing else is shown.
+    enum Readiness: Equatable {
+        case unknown
+        /// No answer to the pairing query: no or an older ESPDock library.
+        case needsLibraryUpdate
+        /// Current library, but setup() calls ESPDock::begin() without `true`.
+        case needsWiFiLogs
+        /// Wi-Fi logs are on, but the board never joined Wi-Fi while on USB.
+        case boardOffWiFi
+        case paired
+    }
+    private(set) var readiness: Readiness = .unknown
     @ObservationIgnored var onIdentity: ((FirmwareReport, String) -> Void)?
     @ObservationIgnored var onLine: ((String) -> Void)?
     @ObservationIgnored var onConnected: (() -> Void)?
@@ -110,6 +128,7 @@ final class WirelessController {
     @ObservationIgnored private var pending: (host: String, port: UInt16, token: String, localID: String?)?
     @ObservationIgnored private var retry: Task<Void, Never>?
     @ObservationIgnored private var keychainRead: Task<Void, Never>?
+    @ObservationIgnored private var autoPairTask: Task<Void, Never>?
     @ObservationIgnored private var generation = UUID()
     @ObservationIgnored private var automatic = false
     @ObservationIgnored private var authorizedToken: (id: String, token: String)?
@@ -162,6 +181,51 @@ final class WirelessController {
         let reply = try await serial.requestPairing(port: usb.port)
         try connect(host: reply.host, port: reply.port, token: reply.token,
                     localID: localID, expectedBoardID: reply.board)
+    }
+
+    /// Pairs the USB board in the background, so Wi-Fi monitoring needs no
+    /// setup UI: called when a USB board appears and after each deploy.
+    /// Pairing over USB hands the token over in memory, so it never reads the
+    /// Keychain (no prompt). Retries while the board is still joining Wi-Fi
+    /// (it boots before its Wi-Fi connects) and while the port is busy.
+    func autoPair(_ usb: Board, serial: SerialMonitor, portBusy: @escaping @MainActor () -> Bool) {
+        autoPairTask?.cancel()
+        guard usb.transport == .usb, let localID = usb.macAddress else { return }
+        // Already streaming from this board over Wi-Fi: nothing to do.
+        if board != nil, pairing?.localBoardID == localID { readiness = .paired; return }
+        readiness = .unknown
+        autoPairTask = Task { [weak self] in
+            // First attempt after the firmware probe (1.5 s) has released the
+            // port; later ones give the board time to join Wi-Fi.
+            for delay in [4, 6, 10, 20, 30] {
+                do { try await Task.sleep(for: .seconds(delay)) } catch { return }
+                guard let self, !Task.isCancelled else { return }
+                if portBusy() { continue }
+                do {
+                    try await self.pairUSB(usb, serial: serial)
+                    self.readiness = .paired
+                    return
+                } catch WirelessError.noPairingResponse {
+                    self.readiness = .needsLibraryUpdate; return
+                } catch WirelessError.wifiLogsDisabled {
+                    self.readiness = .needsWiFiLogs; return
+                } catch WirelessError.boardNotOnWiFi {
+                    self.readiness = .boardOffWiFi   // keep trying
+                } catch {
+                    continue   // port busy or a transient serial error
+                }
+            }
+        }
+    }
+
+    /// The USB board went away: stop pairing attempts and, if this session
+    /// already holds the token (it paired over USB), carry on over Wi-Fi
+    /// without asking. Otherwise the empty state offers Connect over Wi-Fi.
+    func usbDisconnected() {
+        autoPairTask?.cancel()
+        autoPairTask = nil
+        readiness = .unknown
+        if board == nil, pairing != nil, authorizedToken != nil { resume() }
     }
 
     func resume(allowKeychainPrompt: Bool = false) {
@@ -223,6 +287,9 @@ final class WirelessController {
     }
 
     func forget() throws {
+        autoPairTask?.cancel()
+        autoPairTask = nil
+        readiness = .unknown
         if let pairing { try credentials.remove(id: pairing.id) }
         disconnect()
         authorizedToken = nil

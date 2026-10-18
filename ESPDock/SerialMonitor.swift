@@ -159,8 +159,7 @@ final class SerialMonitor {
             pairingReply = continuation
             pairingTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: false) { [weak self] _ in
                 MainActor.assumeIsolated {
-                    self?.finishPairing(.failure(WirelessError.serial(
-                        "No Wi-Fi pairing response. Update lib/ESPDock, call ESPDock::begin(true), and deploy once over USB.")))
+                    self?.finishPairing(.failure(WirelessError.noPairingResponse))
                 }
             }
             let bytes = Array("\nESPDOCK WIFI?\n".utf8)

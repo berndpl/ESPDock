@@ -10,6 +10,12 @@ struct WirelessIdentity: Codable, Equatable, Sendable {
 
 enum WirelessError: LocalizedError {
     case invalidAddress, invalidPort, invalidToken, invalidPairing(String), serial(String)
+    /// Pairing over USB: the firmware didn't answer (no or an older ESPDock library).
+    case noPairingResponse
+    /// The library is current but the sketch calls begin() without `true`.
+    case wifiLogsDisabled
+    /// Wi-Fi logs are on, but the board hasn't joined Wi-Fi yet.
+    case boardNotOnWiFi
 
     var errorDescription: String? {
         switch self {
@@ -17,6 +23,9 @@ enum WirelessError: LocalizedError {
         case .invalidPort: "Port must be between 1 and 65535."
         case .invalidToken: "The pairing token must contain exactly 32 hexadecimal characters."
         case .invalidPairing(let reason), .serial(let reason): reason
+        case .noPairingResponse: "No Wi-Fi pairing response. Update lib/ESPDock and deploy once over USB."
+        case .wifiLogsDisabled: "Call ESPDock::begin(true) in setup() and deploy once over USB."
+        case .boardNotOnWiFi: "The board is not connected to Wi-Fi yet."
         }
     }
 }

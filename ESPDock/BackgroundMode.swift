@@ -41,9 +41,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         monitor.onBoardConnected = { [weak self] board in
             self?.serial.boardAvailable(port: board.port)
+            self?.autoPairWireless()
             guard AppSettings.bringToFront else { return }
             self?.showMainWindow()
         }
+        monitor.onBoardDisconnected = { [weak self] in self?.wireless.usbDisconnected() }
         // Serial monitor ⇄ firmware probe ⇄ deployer share one port.
         firmware.monitor = serial
         serial.onReport = { [weak self] report in
@@ -67,8 +69,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if AppSettings.bringToFront { self.showMainWindow() }
         }
         wireless.resume()
+        autoPairWireless()   // a board already on USB at launch
         deployer.willUsePort = { [weak self] in self?.serial.suspend() }
-        deployer.didReleasePort = { [weak self] port in self?.serial.boardAvailable(port: port) }
+        deployer.didReleasePort = { [weak self] port in
+            self?.serial.boardAvailable(port: port)
+            // New firmware may have just enabled Wi-Fi logs (or a new address).
+            self?.autoPairWireless()
+        }
         #if DEBUG
         // Test hook: simulate a board connecting without replugging hardware.
         // Trigger: swift -e 'import Foundation; DistributedNotificationCenter.default()
@@ -100,6 +107,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
         if !hasVisibleWindows { showMainWindow() }
         return true
+    }
+
+    /// Wi-Fi monitoring pairs itself over USB; see WirelessController.autoPair.
+    private func autoPairWireless() {
+        guard let usb = monitor.board else { return }
+        wireless.autoPair(usb, serial: serial) { [weak self] in self?.deployer.isRunning ?? true }
     }
 
     func showMainWindow() {

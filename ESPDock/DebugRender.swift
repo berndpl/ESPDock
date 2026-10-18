@@ -160,8 +160,7 @@ enum DebugRender {
             : guideMode
             ? AnyView(PinGuideView(guide: .forPin(BoardCatalog.xiaoESP32S3.pins[4])))
             : wifiMode
-            ? AnyView(WirelessSetupView(wireless: WirelessController(), usb: monitor.board,
-                                       serial: serial, projects: projects, deploying: false))
+            ? AnyView(WirelessStatusView(wireless: WirelessController()).frame(width: 480).padding(20))
             : AnyView(ContentView(monitor: monitor, identities: BoardIdentities(),
                                   projects: projects, deployer: Deployer(), firmware: firmware,
                                   serial: SerialMonitor(), wireless: WirelessController()))

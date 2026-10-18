@@ -43,6 +43,18 @@ may run the local PlatformIO CLI (`~/.platformio/penv/bin/pio`) directly.
      intervention. Uploads are rejected by both the view and deployer.
    - Plaintext, trusted LAN only. No OTA, discovery, web server or debugger.
      See README for setup, protocol, bounds and unprofiled resource costs.
+   - **Setup is automatic (2026-10-18).** The earlier setup sheet (toolbar
+     button, pair button, manual address/port/token form, Allow/Reconnect/
+     Disconnect/Forget) felt like too much for "keep logs after unplugging".
+     Now ESPDock pairs over USB in the background when a board appears and
+     after each deploy, and an unplugged board continues over Wi-Fi with the
+     session's token. Visible controls: one hint row in the project card when
+     the firmware needs a change, **Connect over Wi-Fi** in the empty state
+     only when the app started without USB (an explicit Keychain read, kept
+     on purpose; the user chose Keychain over a private token file), and
+     **Forget Wi-Fi Pairing** in the board card's context menu. Manual
+     pairing was dropped: replugging USB re-pairs, including after a DHCP
+     address change.
 
 ## Success criteria
 - Plugging/unplugging the XIAO ESP32S3 updates the window within ~1 s.

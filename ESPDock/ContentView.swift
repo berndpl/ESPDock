@@ -8,7 +8,6 @@ struct ContentView: View {
     let firmware: FirmwareProbe
     let serial: SerialMonitor
     let wireless: WirelessController
-    @State private var showWireless = false
     /// Not persisted: the window always opens without the monitor.
     @State private var showSerial = false
     /// External parts the linked project's code wires to the board.
@@ -24,11 +23,12 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 12) {
             if let board {
                 StatusCard(board: board, model: model,
-                           since: board.transport == .usb ? monitor.since : wireless.since, identities: identities)
+                           since: board.transport == .usb ? monitor.since : wireless.since, identities: identities,
+                           forgetWiFi: wireless.pairing == nil ? nil : { try? wireless.forget() })
 
                 // Project first: it's what you act on; the pinout is reference.
                 ProjectCard(board: board, model: model, projects: projects, deployer: deployer,
-                            firmware: firmware)
+                            firmware: firmware, wifiReadiness: wireless.readiness)
 
                 // The pinout only appears for a known board model.
                 if let model {
@@ -37,7 +37,6 @@ struct ContentView: View {
             } else {
                 EmptyState(otherPorts: monitor.otherPorts, blockedPorts: monitor.blockedPorts)
                 WirelessStatusView(wireless: wireless)
-                Button("Set Up Wi-Fi Monitoring…") { showWireless = true }
             }
         }
         .padding(20)
@@ -65,13 +64,6 @@ struct ContentView: View {
         .toolbar {
             // No title in the toolbar, so push the toggle to the trailing edge.
             ToolbarSpacer(.flexible)
-            ToolbarItem {
-                Button { showWireless = true } label: {
-                    Label("Wi-Fi Monitoring", systemImage: "wifi")
-                        .foregroundStyle(wireless.board == nil ? AnyShapeStyle(.primary) : AnyShapeStyle(.green))
-                }
-                .help("Pair, connect, or manage read-only Wi-Fi monitoring")
-            }
             ToolbarItem(placement: .automatic) {
                 // A Button, not a Toggle: SwiftUI toolbar toggles expose no
                 // accessibility name (VoiceOver read just "toggle button").
@@ -103,10 +95,6 @@ struct ContentView: View {
             if !show { serial.stop() }
         }
         .onChange(of: board?.id) { _, _ in if showSerial { openMonitor() } }
-        .sheet(isPresented: $showWireless) {
-            WirelessSetupView(wireless: wireless, usb: monitor.board, serial: serial,
-                              projects: projects, deploying: deployer.isRunning)
-        }
         .animation(.default, value: board)
         .animation(.default, value: model)
         // Rescan the code for external parts whenever the project changes
@@ -166,6 +154,8 @@ private struct StatusCard: View {
     let model: BoardModel?
     let since: Date
     let identities: BoardIdentities
+    /// Set while a Wi-Fi pairing is saved; the pairing's only control.
+    var forgetWiFi: (() -> Void)?
 
     var body: some View {
         GroupBox {
@@ -212,6 +202,10 @@ private struct StatusCard: View {
                     Divider()
                     Button("Forget Model") { identities.assign(nil, to: board) }
                 }
+            }
+            if let forgetWiFi {
+                Divider()
+                Button("Forget Wi-Fi Pairing", action: forgetWiFi)
             }
         }
     }

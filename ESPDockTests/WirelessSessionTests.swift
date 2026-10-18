@@ -24,6 +24,36 @@ final class WirelessSessionTests: XCTestCase {
         XCTAssertEqual(controller.session.status, .closed)
     }
 
+    /// Auto-pairing acts on these; the strings are FirmwareLib's
+    /// WirelessLogs.cpp pairingReport() errors, verbatim.
+    func testFirmwarePairingErrorsMapToAutoPairCases() {
+        func error(_ json: String) -> Error? {
+            do { _ = try WirelessPairingReply.decode(Data(json.utf8)); return nil } catch { return error }
+        }
+        guard case .wifiLogsDisabled? = error(#"{"error":"Enable Wi-Fi logging with ESPDock::begin(true), then deploy over USB."}"#) as? WirelessError
+        else { return XCTFail("begin(true) error not recognised") }
+        guard case .boardNotOnWiFi? = error(#"{"error":"The board is not connected to Wi-Fi yet."}"#) as? WirelessError
+        else { return XCTFail("offline error not recognised") }
+        guard case .invalidPairing? = error(#"{"error":"Pairing storage is unavailable. Check the USB log."}"#) as? WirelessError
+        else { return XCTFail("other errors should stay generic") }
+    }
+
+    func testUnplugWithoutSessionTokenNeverReadsKeychain() throws {
+        let store = TestWirelessCredentials()
+        let suite = "ESPDockTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let pairing = WirelessPairing(id: "test-pairing", host: "127.0.0.1", port: 3232,
+                                      boardID: "AA:BB:CC:DD:EE:FF", localBoardID: "USB-ID")
+        defaults.set(try JSONEncoder().encode(pairing), forKey: "wirelessPairing")
+        let controller = WirelessController(defaults: defaults, credentials: store)
+        defer { controller.disconnect() }
+        controller.usbDisconnected()
+        XCTAssertEqual(store.readCount, 0)
+        XCTAssertEqual(controller.readiness, .unknown)
+        XCTAssertNil(controller.board)
+    }
+
     func testAuthorizedTokenIsReusedAfterTransientNetworkLoss() async throws {
         let peer = try WirelessTestPeer()
         try await peer.start()

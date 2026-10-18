@@ -21,9 +21,9 @@ builds and uploads your PlatformIO project to it.
   uploads made outside ESPDock.
 - **Serial monitor** that shares the port with probes and uploads. **Copy Output**
   copies all buffered logs to the clipboard, respecting the timestamp toggle.
-- **Paired Wi-Fi monitoring**: the same board, project, wiring and firmware
-  identity without a USB cable, with read-only live logs. USB takes priority;
-  uploads remain USB-only.
+- **Wi-Fi monitoring**: pairs itself over USB, then keeps showing the same
+  board, project, wiring and read-only live logs after you unplug. USB takes
+  priority; uploads remain USB-only.
 - **Project wiring diagram** for a MAX98357A I²S amplifier and volume buttons,
   with source locations and shared-pin warnings. Speaker wiring and switch
   return wires are shown dashed as assumptions, not detected hardware. Hover
@@ -91,9 +91,11 @@ This is an optional **read-only TCP log stream**, not JTAG debugging or OTA.
 The sketch must already connect to Wi-Fi. There is no discovery, cloud,
 HTTP server, extra firmware task or remote command execution.
 
-1. Open the toolbar's **Wi-Fi Monitoring** button. With the board connected
-   over USB and its project linked, use **Update Library** if needed.
-2. Enable the sender in the sketch and route the logs you want to monitor:
+There is no setup screen. Wi-Fi monitoring pairs itself while the board is on
+USB:
+
+1. In the sketch, connect to Wi-Fi as usual and call `ESPDock::begin(true)`;
+   send the logs you want to see through `ESPDock::log()`:
 
    ```cpp
    #include <ESPDock.h>
@@ -105,37 +107,33 @@ HTTP server, extra firmware task or remote command execution.
    }
 
    void loop() {
-       // Keep the application's normal work here.
-       // Example log (emit at the application's normal logging cadence):
        // ESPDock::log().printf("Volume: %d\n", currentVolume);
    }
    ```
 
-3. **Build & Deploy over USB once**, wait for Wi-Fi, then select **Pair
-   Connected USB Board**. ESPDock reads the LAN address and a generated token
-   through USB, authenticates the network identity, stores the token in macOS
-   Keychain, and remembers the endpoint separately. Pairing responses are
-   consumed before monitor logging; the token is never added to normal logs.
-4. Remove USB while keeping the board powered. The same model/project key is
-   retained, with a **Wi-Fi · Read-only** status. Open the device monitor with
-   ⇧⌘M. Baud and send controls are disabled; cable/power facts are not invented.
+2. **Build & Deploy over USB once.** A few seconds after the board is on USB
+   (and after every deploy), ESPDock asks it over USB for its LAN address and
+   pairing token, connects over Wi-Fi in the background, and saves the token
+   in the macOS Keychain. It retries while the board is still joining Wi-Fi.
+   If the firmware needs a change, the project card shows one line: **Update
+   Library** for an older `lib/ESPDock`, or a reminder to call
+   `ESPDock::begin(true)`.
+3. **Unplug USB** while keeping the board powered. Monitoring carries on over
+   Wi-Fi with a **Wi-Fi · Read-only** status; ⇧⌘M opens the device monitor.
+   Baud and send controls are disabled; cable/power facts are not invented.
 
-Remembered connections retry after transient loss. A changed board identity or
-rejected token requires reconnecting/pairing rather than silently trusting the
-new device. **Disconnect** stops retries; **Forget** removes the saved token
-and endpoint. If DHCP changes the address, pair again over USB, or manually
-enter the current private IPv4 address / `.local` hostname, port and token.
-Manual pairing preserves an earlier USB association only when the authenticated
-board has already been paired. macOS may request Local Network or Keychain access.
+When the app starts **without** the board on USB, the empty window offers
+**Connect over Wi-Fi**. That's the only time the saved token is read from the
+Keychain, so macOS may ask for access; it never happens on its own. Ad-hoc
+rebuilds change the app's signing identity, so macOS can ask again after a
+rebuild; choose your own Team in Xcode for a stable identity (ESPDock never
+changes that selection). The token then stays in memory for the app session.
 
-On each app launch, choose **Allow Wi-Fi** in Wi-Fi Monitoring to authorize use
-of the saved token. Keychain reads happen only after this explicit action, never
-from startup or automatic retries. The authorized token is reused in memory for
-the app session; **Forget** clears it as well as the saved pairing. This avoids
-password-dialog loops during development without weakening Keychain protection.
-Ad-hoc rebuilds change the app's signing identity, so macOS can require fresh
-approval even after Always Allow. Choose your own Team in Xcode if you want a
-stable signing identity; ESPDock does not change that selection.
+Dropped connections retry automatically. A changed board identity or rejected
+token is never trusted silently; plug the board into USB once to pair again,
+which also handles a changed DHCP address. **Forget Wi-Fi Pairing** in the
+board card's context menu removes the saved token and endpoint. macOS may ask
+for Local Network access.
 
 **Trusted LAN only:** traffic and the token are **not encrypted**. Do not
 forward TCP port **3232**, expose it to the internet, or use an untrusted/shared

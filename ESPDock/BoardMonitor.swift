@@ -96,6 +96,8 @@ final class BoardMonitor {
     /// Called when a board appears after none was connected (not for a board
     /// already present at launch, since it's set after init's first scan).
     @ObservationIgnored var onBoardConnected: ((Board) -> Void)?
+    /// Called once a disconnect is real (after the post-upload grace period).
+    @ObservationIgnored var onBoardDisconnected: (() -> Void)?
     @ObservationIgnored private var disconnectPending: Task<Void, Never>?
     @ObservationIgnored private var disconnectDeadline: ContinuousClock.Instant?
     @ObservationIgnored private let scan: @MainActor () -> Snapshot?
@@ -241,6 +243,7 @@ final class BoardMonitor {
             board = newBoard
             since = .now
             if !wasConnected, let newBoard { onBoardConnected?(newBoard) }
+            if wasConnected, newBoard == nil { onBoardDisconnected?() }
         }
         otherPorts = others.sorted()
         blockedPorts = newBoard == nil ? MacPort.portsWithBlockedData() : []

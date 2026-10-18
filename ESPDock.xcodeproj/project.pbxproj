@@ -12,9 +12,9 @@
 		1B481CA90BB9B65A00BA2A5D /* CodingAgent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61AAF9578C4778F40428155E /* CodingAgent.swift */; };
 		1D718F32700308719B8AF93D /* SerialMonitorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8383B0FBFD477DAB3EFFFCE /* SerialMonitorView.swift */; };
 		2281E577EE874D1E2926E38A /* BoardMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81421BCE56C221AFBAF11BB1 /* BoardMonitorTests.swift */; };
-		22E8554E8281BC837FD26BFF /* WirelessSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE44F05195531D0F3A5DA071 /* WirelessSetupView.swift */; };
 		22FD6EEE6AE05E4240F1CBA6 /* FirmwareReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41FF2474A1D85AB398BA241 /* FirmwareReport.swift */; };
 		267B0E91D0121F7675792F0E /* MacPort.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3D72331ABEEBADD066ED7A2 /* MacPort.swift */; };
+		27330C6549DD4DD1B5D1F0E3 /* WirelessStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DBFDD3AD81EBF8D0752D73 /* WirelessStatusView.swift */; };
 		2CFFD9A5DC6D09BD4462FC39 /* SerialMonitorOutputTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E5B5641D44003D9C11C3E2D /* SerialMonitorOutputTests.swift */; };
 		40C493F3880DBA0367FE1EC6 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BB1204B79475204FB4F3BC71 /* Assets.xcassets */; };
 		5108D452AAC2FB29652B9D44 /* DebugRender.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35232B794F9B5279832A5F3E /* DebugRender.swift */; };
@@ -74,6 +74,7 @@
 		7FB81CDE8B4FF5F4DC89AA2A /* SerialMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SerialMonitor.swift; sourceTree = "<group>"; };
 		81421BCE56C221AFBAF11BB1 /* BoardMonitorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardMonitorTests.swift; sourceTree = "<group>"; };
 		8AA5BE306745C4816454CD19 /* Deployer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Deployer.swift; sourceTree = "<group>"; };
+		92DBFDD3AD81EBF8D0752D73 /* WirelessStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WirelessStatusView.swift; sourceTree = "<group>"; };
 		A1AB026E2FBCA83330CADB97 /* SelfEditCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelfEditCommand.swift; sourceTree = "<group>"; };
 		A3D72331ABEEBADD066ED7A2 /* MacPort.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacPort.swift; sourceTree = "<group>"; };
 		AAF8D38049AD60204C43127D /* BoardMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardMonitor.swift; sourceTree = "<group>"; };
@@ -86,7 +87,6 @@
 		DD55AD72CCCB98E2D65C867F /* ESPDock.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ESPDock.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E41FF2474A1D85AB398BA241 /* FirmwareReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirmwareReport.swift; sourceTree = "<group>"; };
 		EBE398DB08AC6AC6AD37C421 /* WirelessSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WirelessSession.swift; sourceTree = "<group>"; };
-		EE44F05195531D0F3A5DA071 /* WirelessSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WirelessSetupView.swift; sourceTree = "<group>"; };
 		F11CF24CEF0A5A9BCD84B517 /* PinoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PinoutView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -142,7 +142,7 @@
 				5B6838D7646364B5D7E60886 /* USBConnection.swift */,
 				582FC66AA52916EE605B1F49 /* WirelessController.swift */,
 				EBE398DB08AC6AC6AD37C421 /* WirelessSession.swift */,
-				EE44F05195531D0F3A5DA071 /* WirelessSetupView.swift */,
+				92DBFDD3AD81EBF8D0752D73 /* WirelessStatusView.swift */,
 			);
 			path = ESPDock;
 			sourceTree = "<group>";
@@ -319,7 +319,7 @@
 				65DAB6683F3B9C6530CFF02E /* USBConnection.swift in Sources */,
 				636FBF1E79012ABD37FF1826 /* WirelessController.swift in Sources */,
 				115965D2F315D79A9710D167 /* WirelessSession.swift in Sources */,
-				22E8554E8281BC837FD26BFF /* WirelessSetupView.swift in Sources */,
+				27330C6549DD4DD1B5D1F0E3 /* WirelessStatusView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

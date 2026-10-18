@@ -9,6 +9,8 @@ struct ProjectCard: View {
     let projects: ProjectLinks
     let deployer: Deployer
     let firmware: FirmwareProbe
+    /// What automatic USB pairing found; only drives the Wi-Fi hint row.
+    var wifiReadiness: WirelessController.Readiness = .unknown
     @State private var error: String?
     @State private var showLog = false
     /// AI coding tools used on the linked project, most recent first.
@@ -103,6 +105,7 @@ struct ProjectCard: View {
 
         status(link)
         versionReportingRow(link)
+        wifiHintRow(link)
         if !board.supportsUpload, case .changed = codeStatus(link) {
             Text("Wi-Fi is read-only. Connect USB to deploy; local builds are still available in your editor.")
                 .font(.caption).foregroundStyle(.secondary)
@@ -265,6 +268,47 @@ struct ProjectCard: View {
         } else if firmware.state(for: board) == .noAnswer, firmware.report(for: board) == nil {
             Text("Version reporting is installed — deploy, and make sure setup() calls ESPDock::begin().")
                 .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    /// Wi-Fi monitoring sets itself up over USB (WirelessController.autoPair);
+    /// this row appears only when the firmware needs a change for it. Shown
+    /// only once version reporting works, so it never stacks on that row.
+    @ViewBuilder private func wifiHintRow(_ link: ProjectLink) -> some View {
+        if board.transport == .usb, firmware.report(for: board) != nil {
+            switch wifiReadiness {
+            case .needsLibraryUpdate:
+                HStack {
+                    Label("Wi-Fi logs need the current ESPDock library.", systemImage: "wifi")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Update Library") {
+                        do {
+                            try VersionReportingInstaller.install(projectAt: link.url, environment: link.environment)
+                            projects.rescan()
+                        } catch { self.error = error.localizedDescription }
+                    }
+                    .controlSize(.small)
+                    .disabled(deployer.isRunning)
+                    .help("Updates lib/ESPDock in \(link.name). Deploy afterwards.")
+                }
+            case .needsWiFiLogs:
+                HStack {
+                    Label("For Wi-Fi logs, call ESPDock::begin(true) and deploy.", systemImage: "wifi")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Copy Code") {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString("ESPDock::begin(true);", forType: .string)
+                    }
+                    .controlSize(.small)
+                }
+            case .boardOffWiFi:
+                Label("Wi-Fi logs are on, but the board hasn't joined Wi-Fi.", systemImage: "wifi.exclamationmark")
+                    .font(.caption).foregroundStyle(.secondary)
+            case .unknown, .paired:
+                EmptyView()
+            }
         }
     }
 
