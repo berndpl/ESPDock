@@ -14,23 +14,28 @@ struct WirelessStatusView: View {
 
     var body: some View {
         if wireless.pairing != nil {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Label(status, systemImage: "wifi")
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    if busy {
-                        ProgressView().controlSize(.small)
-                    } else if wireless.board == nil {
-                        Button("Connect over Wi-Fi") { wireless.resume(allowKeychainPrompt: true) }
-                            .help("Uses the saved pairing; macOS may ask to allow Keychain access.")
+            GroupBox {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 8) {
+                        if busy {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Image(systemName: "wifi").foregroundStyle(.secondary)
+                        }
+                        Text(status).foregroundStyle(.secondary)
+                        Spacer()
+                        if !busy, wireless.board == nil {
+                            Button("Connect over Wi-Fi") { wireless.resume(allowKeychainPrompt: true) }
+                                .help("Uses the saved pairing; macOS may ask to allow Keychain access.")
+                        }
+                    }
+                    .font(.callout)
+                    // The authorization notice just restates the button.
+                    if let error = wireless.error, !wireless.requiresKeychainAuthorization, !busy {
+                        Text(error).font(.caption).foregroundStyle(.secondary)
                     }
                 }
-                .font(.callout)
-                // The authorization notice just restates the button.
-                if let error = wireless.error, !wireless.requiresKeychainAuthorization, !busy {
-                    Text(error).font(.caption).foregroundStyle(.secondary)
-                }
+                .padding(4)
             }
         }
     }

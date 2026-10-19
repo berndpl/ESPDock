@@ -1,12 +1,22 @@
 import SwiftUI
 
-/// Inspector content: live serial output with send field. Stock controls only.
+/// Inspector content: the board's live output. Deliberately few controls
+/// (baud, pause, clear, copy, all in the toolbar): no timestamps (firmware
+/// logs carry their own), no send field, and no autoscroll switch. Output
+/// follows new lines while you're at the bottom and stops following when
+/// you scroll up to read, like Console and Terminal.
 struct SerialMonitorView: View {
     let monitor: SerialMonitor
-    @State private var input = ""
-    @State private var autoscroll = true
     @State private var copyFailed = false
-    @AppStorage("serialShowTimestamps") private var showTimestamps = true
+    /// True while the view is scrolled to the bottom.
+    @State private var following = true
+
+    /// Bottom-ness plus content height, so a change caused by new output
+    /// (height grows) can be told apart from the user scrolling.
+    private struct ScrollState: Equatable {
+        var atBottom: Bool
+        var contentHeight: CGFloat
+    }
 
     var body: some View {
         @Bindable var monitor = monitor
@@ -34,22 +44,18 @@ struct SerialMonitorView: View {
                 .overlay {
                     if monitor.lines.isEmpty { emptyState }
                 }
+                .onScrollGeometryChange(for: ScrollState.self) { g in
+                    ScrollState(atBottom: g.contentOffset.y + g.containerSize.height >= g.contentSize.height - 24,
+                                contentHeight: g.contentSize.height)
+                } action: { old, new in
+                    // Only the user's own scrolling changes following; growth
+                    // from new output must not switch it off.
+                    if old.contentHeight == new.contentHeight { following = new.atBottom }
+                }
                 .onChange(of: monitor.lines.last?.id) { _, last in
-                    if autoscroll, let last { proxy.scrollTo(last, anchor: .bottom) }
+                    if following, let last { proxy.scrollTo(last, anchor: .bottom) }
                 }
             }
-
-            Divider()
-
-            HStack(spacing: 8) {
-                TextField(monitor.isWireless ? "Wi-Fi monitoring is read-only" : "Send to board", text: $input)
-                    .textFieldStyle(.roundedBorder)
-                    .onSubmit(send)
-                    .disabled(!isOpen)
-                Toggle("Autoscroll", isOn: $autoscroll)
-                    .toggleStyle(.checkbox)
-            }
-            .padding(10)
         }
         // Controls go in the window toolbar, above the inspector column.
         .toolbar {
@@ -63,16 +69,12 @@ struct SerialMonitorView: View {
                     Label("Pause", systemImage: "pause.fill")
                 }
                 .help("Pause incoming output")
-                Toggle(isOn: $showTimestamps) {
-                    Label("Timestamps", systemImage: "clock")
-                }
-                .help("Show timestamps")
                 Button { monitor.clear() } label: { Label("Clear", systemImage: "trash") }
                     .help("Clear output")
             }
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    copyFailed = !copyOutput(showTimestamps: showTimestamps)
+                    copyFailed = !copyOutput(showTimestamps: false)   // copy what's shown
                 } label: {
                     Label("Copy Output", systemImage: "doc.on.doc")
                 }
@@ -95,20 +97,9 @@ struct SerialMonitorView: View {
     }
 
     private func row(_ line: SerialMonitor.Line) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            if showTimestamps {
-                Text(line.time, format: SerialMonitor.Line.timestampFormat)
-                    .foregroundStyle(.tertiary)
-            }
-            Text(line.displayText)
-                .foregroundStyle(line.outgoing ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
-        }
-        .font(.system(size: 11, design: .monospaced))
-    }
-
-    private var isOpen: Bool {
-        if case .open = monitor.status { return true }
-        return false
+        Text(line.displayText)
+            .foregroundStyle(line.outgoing ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
+            .font(.system(size: 11, design: .monospaced))
     }
 
     @ViewBuilder private var statusLabel: some View {
@@ -140,12 +131,6 @@ struct SerialMonitorView: View {
                  ? "ESPDock::log() output appears here after Wi-Fi connects. Early boot and dropped lines require USB."
                  : "Serial.print() output from the board appears here.")
         }
-    }
-
-    private func send() {
-        guard !input.isEmpty else { return }
-        monitor.send(input)
-        input = ""
     }
 }
 

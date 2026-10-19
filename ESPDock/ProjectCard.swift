@@ -50,9 +50,20 @@ struct ProjectCard: View {
 
     @ViewBuilder private func linked(_ link: ProjectLink) -> some View {
         HStack(spacing: 10) {
-            Image(systemName: "folder.fill").foregroundStyle(.secondary)
-            Text(link.name).font(.headline)
-                .help("\(link.path)\nenv: \(link.environment)")
+            Button {
+                if !NSWorkspace.shared.open(link.url) {
+                    error = "Could not open the project folder: \(link.path)"
+                }
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "folder.fill").foregroundStyle(.secondary)
+                    Text(link.name).font(.headline).lineLimit(1).truncationMode(.middle)
+                }
+            }
+            .buttonStyle(.plain)
+            .help("Open folder in Finder\n\(link.path)\nenv: \(link.environment)")
+            .accessibilityLabel("Open \(link.name) in Finder")
+            .accessibilityIdentifier("project-open-folder")
             Spacer()
             // Native split button: click edits with the AI used on this
             // project (its CLI in Terminal); the chevron holds the rest.

@@ -119,12 +119,16 @@ enum DebugRender {
         let guideMode = args.contains("--render-guide")
         // --render-wifi <out.png> [dark|light]: the USB/manual pairing sheet.
         let wifiMode = args.contains("--render-wifi")
+        // --render-disconnected <out.png> [dark|light]: the tall empty-state layout.
+        let disconnectedMode = args.contains("--render-disconnected")
         // --render-wiring <out.png> [dark|light] <project> [blueprint]: the pinout
         // card with the external parts found in that project's code.
+        // Add --power-details to expand its power calculation without a device.
         let wiringMode = args.contains("--render-wiring")
         guard let i = args.firstIndex(of: serialMode ? "--render-serial"
                                       : guideMode ? "--render-guide"
                                       : wifiMode ? "--render-wifi"
+                                      : disconnectedMode ? "--render-disconnected"
                                       : wiringMode ? "--render-wiring" : "--render-pinout"),
               i + 1 < args.count else { return }
         let dark = !serialMode && args.count > i + 2 && args[i + 2] == "dark"
@@ -134,9 +138,11 @@ enum DebugRender {
         let monitor = BoardMonitor()
         let projects = ProjectLinks()
         let firmware = FirmwareProbe()
-        projects.watch(monitor.board)
-        if let board = monitor.board { firmware.probe(board, after: .zero) }
-        RunLoop.main.run(until: Date().addingTimeInterval(3.0))
+        if !disconnectedMode {
+            projects.watch(monitor.board)
+            if let board = monitor.board { firmware.probe(board, after: .zero) }
+            RunLoop.main.run(until: Date().addingTimeInterval(3.0))
+        }
         let serial = SerialMonitor()
         if serialMode, args.count > i + 2 {
             serial.start(port: args[i + 2])
@@ -152,8 +158,15 @@ enum DebugRender {
         let wiringParts = wiringMode && args.count > i + 3
             ? PeripheralScanner.scan(projectAt: URL(fileURLWithPath: args[i + 3]), board: BoardCatalog.xiaoESP32S3)
             : []
-        let content: AnyView = wiringMode
-            ? AnyView(GroupBox { PinoutView(model: BoardCatalog.xiaoESP32S3, parts: wiringParts).padding(4) }
+        let content: AnyView = disconnectedMode
+            ? AnyView(DisconnectedStateView(otherPorts: monitor.otherPorts, blockedPorts: monitor.blockedPorts,
+                                            wireless: WirelessController())
+                .padding(20).frame(width: ContentView.width, height: 1040))
+            : wiringMode
+            ? AnyView(GroupBox {
+                SchematicCard(model: BoardCatalog.xiaoESP32S3, parts: wiringParts,
+                              expandPowerEstimate: args.contains("--power-details")).diagram
+            }
                 .frame(width: 480).padding(20))
             : serialMode
             ? AnyView(SerialMonitorView(monitor: serial).frame(width: 440, height: 360))

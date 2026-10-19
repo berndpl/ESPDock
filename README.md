@@ -19,17 +19,27 @@ builds and uploads your PlatformIO project to it.
 - **Firmware version reporting**: an optional firmware library makes the board
   report project, commit and a source hash, so "up to date" is exact even for
   uploads made outside ESPDock.
-- **Serial monitor** that shares the port with probes and uploads. **Copy Output**
-  copies all buffered logs to the clipboard, respecting the timestamp toggle.
+- **Finder shortcut**: click the linked project's name or folder icon to open
+  the folder's contents in Finder, without changing the adjacent editor action.
+- **Device monitor** that shares the port with probes and uploads. One toolbar
+  button opens it; its icon shows a cable on USB and Wi-Fi when the board is
+  reachable only over Wi-Fi. Output follows new lines while you're at the
+  bottom and stops when you scroll up. **Copy Output** copies all buffered logs.
 - **Wi-Fi monitoring**: pairs itself over USB, then keeps showing the same
   board, project, wiring and read-only live logs after you unplug. USB takes
   priority; uploads remain USB-only.
+  With no board connected, the empty state fills the available space and the
+  Wi-Fi connection status stays at the bottom. Incidental serial-port paths
+  are available under **Connection details**, not shown inline.
 - **Project wiring diagram** for a MAX98357A I²S amplifier and volume buttons,
   with source locations and shared-pin warnings. Speaker wiring and switch
   return wires are shown dashed as assumptions, not detected hardware. Hover
   a wire to trace it; click to keep it highlighted while checking the hardware.
   Click it again, press Escape, or use Clear highlight to clear the selection.
   Wiring-details rows support the same selection.
+- **Project power estimate** alongside the schematic: board and amplifier input
+  budgets, speaker impedance, calculation details and a suggested 5 V supply.
+  Clearly labeled as an estimate, not measured consumption.
 - **Background mode**: keeps running off the Dock and reopens when a board
   connects.
 
@@ -44,6 +54,99 @@ builds and uploads your PlatformIO project to it.
   `~/.platformio/penv/bin/pio` (for Build & Deploy)
 - Optional: [XcodeGen](https://github.com/yonaskolb/XcodeGen) to regenerate the
   project from `project.yml`
+
+## Project power estimate
+
+Expand **Power** at the top of the schematic using its right-side chevron to see each
+component's contribution and compare power supplies. The **info** button opens
+the calculation, assumptions and a vertical list of reference links in a
+scrollable popover, keeping the schematic focused on actionable figures.
+The collapsed row shows only estimated voltage/current and an orange warning
+when the known current USB allocation falls short; unknown capacity does not
+produce a shortfall warning. Info and supply controls appear only after expansion.
+The budget updates with the
+project's detected parts. The Dayton Audio PC83-8 supplies its catalogued 8-ohm
+impedance; for a generic speaker, choose a 4- or 8-ohm load in the disclosure.
+An override is temporary and resets when the project/components change.
+Board input voltage, power-pin labels and the board allowance come from the
+board catalog's optional power profile, not the project name. Boards without
+a valid profile remain unknown rather than borrowing the reference radio's
+allowance. Component estimates follow the scanned schematic connections.
+
+For the reference radio with a MAX98357A on 5 V and an 8-ohm speaker:
+
+| Load | Input-power allowance |
+|---|---|
+| XIAO ESP32S3 | 5 V × 0.5 A = 2.50 W |
+| Amplifier, including speaker output | 1.8 W / 80% + 5 V × 0.00335 A ≈ 2.27 W |
+| Passive speaker and switches | Already covered above; not added twice |
+| Total | ≈ 4.77 W / 5 V = 0.95 A |
+
+With 25% headroom, the calculated minimum is about 1.19 A; rounding up to a
+whole-amp source suggests **regulated 5 V / 2 A**. This is supply capacity,
+not a prediction that the radio continuously consumes 10 W.
+
+The 500 mA board allowance is a conservative 5 V input sizing assumption,
+informed by [Espressif's ≥500 mA guideline for the 3.3 V chip supply](https://docs.espressif.com/projects/esp-hardware-design-guidelines/en/latest/esp32s3/schematic-checklist.html#power-supply).
+It is not idle or typical consumption. The MAX98357A uses its
+[5 V output ratings](https://learn.adafruit.com/adafruit-max98357-i2s-class-d-mono-amp/overview)
+(1.8 W into 8 ohms; 3.2 W into 4 ohms, at 10% THD), an assumed 80% efficiency,
+and a 3.35 mA idle allowance from its
+[electrical specifications](https://cdn-shop.adafruit.com/product-files/3006/MAX98357A-MAX98357B.pdf).
+Real efficiency, clipping, program workload and audio dynamics vary; this is
+neither a guaranteed maximum nor an average-power/battery-runtime prediction.
+
+Only modeled parts shown in the schematic are included. Unsupported components,
+unknown speaker impedance and unrecognized amplifier supply/return wiring make
+the estimate **incomplete**, without a whole-project supply recommendation.
+The shipped board profile models the USB-powered XIAO ESP32S3. The MAX98357A
+calculation requires a direct connection to a profiled board's 5 V input rail;
+3V3 amplifier/regulator loads and conversion between rails are deliberately
+not guessed.
+Battery charging, unrecognized hardware and battery-converter losses are
+excluded. The XIAO's 5 V pin is not powered in battery-only operation: the shown
+amplifier wiring would need a separate 5 V rail or boost converter.
+
+The USB current figures in the board card remain **allocated/available USB
+budget**, not measurements. Confirm inferred physical wiring and use a USB
+power meter or inline current sensor to verify the finished project's draw.
+No additional firmware or measurement hardware is needed for the estimate.
+
+### Compare power sources
+
+The **Supply** picker compares the estimated load and the **25%-headroom sizing
+target** against each source, showing whether it is below the load, covers
+the load without full headroom, or meets the sizing target. Spare/shortfall
+current is calculated against that target, not the rounded 2 A recommendation.
+
+For the current Mac USB connection, comparisons use the **device allocation**.
+The **reported upstream port limit** is separate context in the info popover
+and tooltip, not a second apparent supply option. A port reporting 1.5 A does
+not mean the board has been allocated 1.5 A: a 500 mA device allocation
+still falls below this radio's estimated load. Hub figures describe the
+USB path, not the MacBook power adapter. USB data is unavailable over Wi-Fi.
+
+The adjacent **…** menu groups add, edit and remove actions. The sizing calculation
+and inferred-wiring reminder live in the info popover rather than below the picker.
+
+Use **Add supply** in that menu to save any named supply with its labeled **output voltage
+and current**—for example, an Anker charger, USB-C brick, power bank or bench
+supply. Ratings can be left blank when unknown; unknown capacity never receives
+a sufficient-power verdict. Optional notes and an HTTPS specification URL appear
+in the info popover's source list. Profiles can be edited/removed and are reusable across projects;
+there are no brand-specific assumptions or preset ratings. ESPDock cannot read
+a charger label through the board. For the radio, use a source's **5 V**
+output rating, not its headline 65 W USB-PD rating. A different nominal voltage
+is marked **not comparable**, without headroom calculations; power conversion
+and higher-voltage PD negotiation are not inferred.
+These comparisons are planning checks, not guarantees of usable power:
+shared charger ports, cables, the board's power path and USB-C negotiation
+can impose lower limits. ESPDock does not change or negotiate USB allocation.
+
+ESP-Radio is a reference/test project, not an application special case. New
+hardware support belongs in board/component profiles and schematic analysis;
+project names, local paths and the reference project's wiring must not decide
+behavior. Unsupported hardware stays explicitly incomplete until modeled.
 
 ## Build
 

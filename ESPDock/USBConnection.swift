@@ -36,6 +36,9 @@ struct USBConnection: Equatable {
     /// USB-C current advertisement.
     let portLimitMilliamps: Int?
 
+    var allocatedAmps: Double? { allocatedMilliamps.map { Double($0) / 1_000 } }
+    var portLimitAmps: Double? { portLimitMilliamps.map { Double($0) / 1_000 } }
+
     var pathDescription: String {
         hubs.isEmpty ? "Directly to Mac" : "Via " + hubs.reversed().joined(separator: " → ")
     }

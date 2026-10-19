@@ -9,8 +9,7 @@ settings:
     SWIFT_STRICT_CONCURRENCY: complete
     MARKETING_VERSION: "0.1"
     CURRENT_PROJECT_VERSION: "1"
-    # No team selected yet for this new project: sign to run locally only.
-    # Pick a Team in Xcode when needed; it will be preserved on regeneration.
+    # App signing follows its Xcode-selected Team below; tests stay ad-hoc.
     CODE_SIGN_IDENTITY: "-"
     CODE_SIGN_STYLE: Manual
     ENABLE_USER_SCRIPT_SANDBOXING: NO
@@ -29,6 +28,11 @@ targets:
         buildPhase: resources
     settings:
       base:
+        DEVELOPMENT_TEAM: DNKZNVGEK5
+        CODE_SIGN_IDENTITY: Apple Development
+        "CODE_SIGN_IDENTITY[sdk=macosx*]": Apple Development
+        CODE_SIGN_STYLE: Automatic
+        PROVISIONING_PROFILE_SPECIFIER: ""
         PRODUCT_BUNDLE_IDENTIFIER: de.plontsch.ESPDock
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: YES

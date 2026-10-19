@@ -55,6 +55,31 @@ may run the local PlatformIO CLI (`~/.platformio/penv/bin/pio`) directly.
      **Forget Wi-Fi Pairing** in the board card's context menu. Manual
      pairing was dropped: replugging USB re-pairs, including after a DHCP
      address change.
+7. **Project power estimate** *(done)*
+   - Compact, expandable budget at the top of the schematic, derived from its
+     known board, amplifier supply wiring and nominal speaker impedance.
+   - XIAO 5 V board allowance plus MAX98357A input power (audio output divided
+     by assumed efficiency, plus idle allowance). Passive speaker/switch loads
+     are not counted twice.
+   - Explicit assumptions, source links, a 25% supply margin and whole-amp
+     capacity recommendation; no live-current or battery-runtime claims.
+   - Unknown components, unsupported rails and missing speaker impedance
+     produce an incomplete estimate, not a deceptively small total.
+   - Compares the load and 25% margin against current USB allocation, keeping
+     upstream capacity as context rather than another supply option. User-named voltage/current supply
+     profiles are reusable across projects. Voltage mismatches are not
+     compared; charger identification, conversion and PD negotiation are
+     never inferred.
+   - Board input rails and allowances come from optional catalog profiles,
+     not an ESP-Radio/project-name special case. Missing profiles and
+     unsupported schematic configurations remain explicitly incomplete.
+   - Keep sizing figures, supply comparisons and wiring warnings in the card;
+     calculation details, assumptions and vertically listed reference links
+     live in its info popover.
+   - A single-row Power entry has its expand/collapse chevron on the right.
+     Only known current-connection shortfalls show an exclamation mark.
+     The expanded view has a compact supply-comparison picker and info button.
+     Saved profiles can retain unknown ratings plus specification URLs/notes.
 
 ## Success criteria
 - Plugging/unplugging the XIAO ESP32S3 updates the window within ~1 s.
@@ -80,7 +105,9 @@ may run the local PlatformIO CLI (`~/.platformio/penv/bin/pio`) directly.
   through ESPDock.
 - **No live power draw.** macOS has no per-port current measurement; only
   the USB power *budget* is shown, labelled as such. Real draw would need a
-  sensor on the board (e.g. INA219) reporting over serial.
+  sensor on the board (e.g. INA219) reporting over serial. The schematic's
+  separate power estimate is an explicitly assumed supply-sizing calculation;
+  it does not turn USB allocation into a measurement.
 - **Board → Mac port mapping via IOPort transport metadata** (vendor/product
   ID + serial number on the port's USB2/USB3 node), not controller numbering,
   which isn't documented. The IOPort plane itself is undocumented (it's what

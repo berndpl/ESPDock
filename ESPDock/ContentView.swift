@@ -32,11 +32,13 @@ struct ContentView: View {
 
                 // The pinout only appears for a known board model.
                 if let model {
-                    SchematicCard(model: model, parts: parts)
+                    SchematicCard(model: model, parts: parts,
+                                  usbConnection: board.transport == .usb ? board.connection : nil)
+                        .id(projects.link(for: board)?.path)
                 }
             } else {
-                EmptyState(otherPorts: monitor.otherPorts, blockedPorts: monitor.blockedPorts)
-                WirelessStatusView(wireless: wireless)
+                DisconnectedStateView(otherPorts: monitor.otherPorts, blockedPorts: monitor.blockedPorts,
+                                      wireless: wireless)
             }
         }
         .padding(20)
@@ -76,15 +78,16 @@ struct ContentView: View {
                     t.disablesAnimations = true
                     withTransaction(t) { showSerial.toggle() }
                 } label: {
-                    Label("Device Monitor", systemImage: "apple.terminal")
-                        // On-state cue a plain Button doesn't have: filled
-                        // and tinted while the monitor is open.
-                        .symbolVariant(showSerial ? .fill : .none)
+                    // One entry point; the icon says how the board is reached:
+                    // a cable on USB, Wi-Fi only when there's no cable.
+                    Label("Device Monitor", systemImage: board?.transport == .wifi ? "wifi" : "cable.connector")
+                        // On-state cue a plain Button doesn't have: tinted
+                        // while the monitor is open.
                         .foregroundStyle(showSerial ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
                 }
                 .accessibilityAddTraits(showSerial ? .isSelected : [])
                 .keyboardShortcut("m", modifiers: [.command, .shift])
-                .help("Show live USB or read-only Wi-Fi output (⇧⌘M)")
+                .help(board?.transport == .wifi ? "Show read-only Wi-Fi output (⇧⌘M)" : "Show live USB output (⇧⌘M)")
                 // Opening needs a board's port; closing must always work (the
                 // monitor stays open, "Waiting for board…", across resets).
                 .disabled(board == nil && !showSerial)
@@ -122,15 +125,27 @@ struct ContentView: View {
 struct SchematicCard: View {
     let model: BoardModel
     let parts: [DetectedPart]
+    var usbConnection: USBConnection? = nil
+    var expandPowerEstimate = false
 
     var body: some View {
         GroupBox {
             ScrollView {
-                PinoutView(model: model, parts: parts)
-                    .padding(4)
+                diagram
             }
             .scrollBounceBehavior(.basedOnSize)
             .frame(minHeight: 220, maxHeight: .infinity)
+        }
+    }
+
+    var diagram: some View {
+        VStack(spacing: 12) {
+            PowerEstimateView(model: model, parts: parts, usbConnection: usbConnection,
+                              initiallyExpanded: expandPowerEstimate)
+                .padding(8)
+            Divider()
+            PinoutView(model: model, parts: parts)
+                .padding(4)
         }
     }
 }
@@ -249,11 +264,27 @@ private struct StatusCard: View {
     }
 }
 
+struct DisconnectedStateView: View {
+    let otherPorts: [String]
+    let blockedPorts: [String]
+    let wireless: WirelessController
+
+    var body: some View {
+        VStack(spacing: 12) {
+            EmptyState(otherPorts: otherPorts, blockedPorts: blockedPorts)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            WirelessStatusView(wireless: wireless)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
 /// No board: the system empty-state view, plus the accessory-security hint
 /// when macOS is blocking a device's data connection.
 private struct EmptyState: View {
     let otherPorts: [String]
     let blockedPorts: [String]
+    @State private var showPorts = false
 
     var body: some View {
         VStack(spacing: 12) {
@@ -261,7 +292,32 @@ private struct EmptyState: View {
                 Label("No Board Connected", systemImage: "cable.connector.slash")
             } description: {
                 Text("Plug in an ESP32 with a USB data cable, or connect a paired board over Wi-Fi.")
+            } actions: {
+                if !otherPorts.isEmpty {
+                    Button("Connection details", systemImage: "info.circle") {
+                        showPorts.toggle()
+                    }
+                    .font(.caption)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("connection-details")
+                    .popover(isPresented: $showPorts) {
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Detected serial ports").font(.headline)
+                                ForEach(otherPorts, id: \.self) { port in
+                                    Text(port).font(.caption.monospaced())
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                }
+                            }
+                            .textSelection(.enabled)
+                            .padding(16)
+                        }
+                        .frame(width: 320, height: 180)
+                    }
+                }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             if !blockedPorts.isEmpty {
                 GroupBox {
                     Label {
@@ -272,11 +328,6 @@ private struct EmptyState: View {
                     }
                     .padding(4)
                 }
-            }
-            if !otherPorts.isEmpty {
-                Text("Other serial ports: \(otherPorts.joined(separator: ", "))")
-                    .font(.caption.monospaced())
-                    .foregroundStyle(.secondary)
             }
         }
         .frame(minHeight: 260)

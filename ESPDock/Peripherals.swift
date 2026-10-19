@@ -24,6 +24,7 @@ struct PartModel: Hashable, Sendable {
     let pins: [PartPin]
     var modelName: String? = nil
     var resources: [ComponentResource] = []
+    var speakerImpedanceOhms: Int? = nil
 
     // Pin names, order and meaning: Adafruit "MAX98357 I2S Class-D Mono Amp"
     // guide (pinouts page) and the Maxim MAX98357A datasheet. With the header
@@ -62,7 +63,8 @@ struct PartModel: Hashable, Sendable {
         pins: speaker.pins,
         resources: [
             ComponentResource(title: "Product specifications", url: URL(string: "https://www.parts-express.com/Dayton-Audio-PC83-8-3-Full-Range-Poly-Cone-Driver-295-150")!),
-        ])
+        ],
+        speakerImpedanceOhms: 8)
 
     static func volumeButton(up: Bool, nuphy: Bool = false) -> PartModel {
         PartModel(id: up ? "volume-up" : "volume-down",
