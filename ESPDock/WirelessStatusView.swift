@@ -51,8 +51,8 @@ struct WirelessStatusView: View {
         switch wireless.session.status {
         case .connecting, .authenticating: return "Connecting over Wi-Fi…"
         case .connected: return "Wi-Fi · \(wireless.board?.port ?? "")"
-        case .failed: return "Paired board unreachable over Wi-Fi"
-        case .closed: return "Paired over Wi-Fi"
+        case .failed: return "Board unreachable over Wi-Fi"
+        case .closed: return "Not connected over Wi-Fi"
         }
     }
 }

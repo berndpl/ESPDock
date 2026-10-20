@@ -167,10 +167,152 @@ final class PeripheralScannerTests: XCTestCase {
         XCTAssertTrue(amp.part.resources.allSatisfy { $0.url.scheme == "https" })
     }
 
+    private let displayHardware = """
+    {
+      "schemaVersion": 1,
+      "board": "seeed_xiao_esp32s3",
+      "components": [
+        {
+          "id": "epaper-driver", "name": "ePaper Driver Board", "kind": "carrier",
+          "summary": "Socketed carrier; charging state unavailable.",
+          "pins": [{"name": "RST", "detail": "Reset"}, {"name": "FPC", "detail": "Panel connector"}],
+          "connections": [{"pin": "RST", "sourcePin": "D0", "note": "V2 schematic; not a continuity measurement."}]
+        },
+        {
+          "id": "epaper-panel", "name": "2.13-inch ePaper", "kind": "display",
+          "summary": "122 x 250; SSD1680",
+          "pins": [{"name": "FPC", "detail": "24-pin flex cable"}],
+          "connections": [{"pin": "FPC", "sourcePart": "epaper-driver", "sourcePin": "FPC", "note": "Fitted ribbon."}]
+        },
+        {
+          "id": "sense-camera", "name": "Sense camera", "kind": "camera",
+          "summary": "Attached but not initialized; sensor variant unknown.",
+          "pins": [{"name": "B2B", "detail": "Sense expansion connector"}],
+          "connections": [{"pin": "B2B", "sourcePin": "B2B", "note": "Board-to-board connector, not a header GPIO."}]
+        },
+        {
+          "id": "battery", "name": "Battery", "kind": "battery",
+          "summary": "Connected; capacity and charge level unknown.",
+          "pins": [{"name": "+", "detail": "Positive"}, {"name": "-", "detail": "Negative"}],
+          "connections": []
+        }
+      ]
+    }
+    """
+
+    func testHardwareManifestLoadsAttachedPartsWithoutInventingFirmwareUse() throws {
+        let parts = try scan("", notes: ["hardware.json": displayHardware])
+        XCTAssertEqual(parts.map(\.id), ["epaper-driver", "epaper-panel", "sense-camera", "battery"])
+        let reset = try XCTUnwrap(parts.first?.connections.first)
+        XCTAssertEqual(reset.end.boardPin, "D0")
+        XCTAssertEqual(reset.end.gpio, 1)
+        XCTAssertFalse(reset.isAssumed)
+        let panel = try XCTUnwrap(parts.first(where: { $0.id == "epaper-panel" }))
+        XCTAssertEqual(panel.connections.first?.end.partID, "epaper-driver")
+        let camera = try XCTUnwrap(parts.first(where: { $0.id == "sense-camera" }))
+        XCTAssertEqual(camera.connections.first?.end.boardPin, "B2B")
+        XCTAssertNil(camera.connections.first?.end.gpio)
+        XCTAssertTrue(camera.part.summary.contains("not initialized"))
+        XCTAssertTrue(try XCTUnwrap(parts.last).part.summary.contains("unknown"))
+    }
+
+    func testHardwareManifestIsAuthoritativeAndDoesNotLeakBetweenProjects() throws {
+        let parts = try scan(radio, notes: ["hardware.json": displayHardware])
+        XCTAssertEqual(parts.map(\.id), ["epaper-driver", "epaper-panel", "sense-camera", "battery"])
+        XCTAssertEqual(try scan(radio).count, 4)
+        XCTAssertTrue(try scan("").isEmpty)
+    }
+
+    func testInvalidHardwareManifestShowsAnErrorInsteadOfFallingBackToRadio() throws {
+        let invalid = [
+            "{",
+            displayHardware.replacingOccurrences(of: "\"schemaVersion\": 1", with: "\"schemaVersion\": 2"),
+            displayHardware.replacingOccurrences(of: "seeed_xiao_esp32s3", with: "another_board"),
+            displayHardware.replacingOccurrences(of: "\"sourcePin\": \"D0\"", with: "\"sourcePin\": \"D99\""),
+            displayHardware.replacingOccurrences(of: "\"sourcePart\": \"epaper-driver\"", with: "\"sourcePart\": \"missing\""),
+            displayHardware.replacingOccurrences(of: "\"id\": \"battery\"", with: "\"id\": \"sense-camera\""),
+        ]
+        for json in invalid {
+            let parts = try scan(radio, notes: ["hardware.json": json])
+            XCTAssertEqual(parts.map(\.id), ["hardware-manifest-error"])
+            XCTAssertFalse(try XCTUnwrap(parts.first).issues.isEmpty)
+        }
+    }
+
+    func testHardwareFileChangesInvalidateTheWiringScanInput() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer {
+            do { try FileManager.default.removeItem(at: root) }
+            catch { XCTFail("Couldn't remove fixture: \(error)") }
+        }
+        let file = root.appendingPathComponent("hardware.json")
+        try displayHardware.write(to: file, atomically: true, encoding: .utf8)
+        let before = PeripheralScanner.hardwareNotes(projectAt: root)
+        XCTAssertTrue(before.contains("Sense camera"))
+        try displayHardware.replacingOccurrences(of: "Sense camera", with: "Different camera")
+            .write(to: file, atomically: true, encoding: .utf8)
+        XCTAssertNotEqual(PeripheralScanner.hardwareNotes(projectAt: root), before)
+        XCTAssertEqual(PeripheralScanner.scan(projectAt: root, board: BoardCatalog.xiaoESP32S3)
+            .first(where: { $0.id == "sense-camera" })?.part.name, "Different camera")
+    }
+
+    func testIllustrationStyleCycleAndTransparentSchematicPalette() {
+        XCTAssertEqual(BoardStyle.realistic.toggled, .blueprint)
+        XCTAssertEqual(BoardStyle.blueprint.toggled, .schematic)
+        XCTAssertEqual(BoardStyle.schematic.toggled, .realistic)
+        XCTAssertEqual(Set(BoardStyle.allCases), [.realistic, .blueprint, .schematic])
+        XCTAssertEqual(BoardStyle.schematic.paper, .clear)
+        XCTAssertEqual(BoardStyle.schematic.ink, .blue)
+        XCTAssertEqual(BoardStyle.blueprint.paper, Blueprint.paper)
+        XCTAssertEqual(BoardStyle.blueprint.ink, Blueprint.ink)
+    }
+
+    @MainActor
+    func testDocumentedHardwareHasVisibleBodiesAndEveryConnectionAnchorInAllStyles() throws {
+        let parts = try scan("", notes: ["hardware.json": displayHardware])
+        XCTAssertEqual(parts.count, 4)
+        let arguments = UserDefaults.standard.volatileDomain(forName: UserDefaults.argumentDomain)
+        defer { UserDefaults.standard.setVolatileDomain(arguments, forName: UserDefaults.argumentDomain) }
+        for style in BoardStyle.allCases {
+            UserDefaults.standard.setVolatileDomain(
+                arguments.merging(["boardStyle": style.rawValue]) { _, new in new },
+                forName: UserDefaults.argumentDomain)
+            let frames = WiringFrames()
+            let view = PinoutView(model: BoardCatalog.xiaoESP32S3, parts: parts)
+                .frame(width: 456)
+                .environment(\.boardStyle, style)
+                .overlayPreferenceValue(WireAnchorKey.self) { anchors in
+                    GeometryReader { proxy in
+                        Color.clear.onAppear { frames.rects = anchors.mapValues { proxy[$0] } }
+                    }
+                }
+            let host = NSHostingView(rootView: view)
+            let window = NSWindow(contentRect: CGRect(origin: CGPoint(x: -10_000, y: -10_000),
+                                                      size: host.fittingSize),
+                                  styleMask: [.borderless], backing: .buffered, defer: false)
+            window.contentView = host
+            window.orderFrontRegardless()
+            defer { window.orderOut(nil) }
+            host.layoutSubtreeIfNeeded()
+            RunLoop.main.run(until: Date().addingTimeInterval(0.2))
+            for part in parts {
+                XCTAssertNotNil(frames.rects["part:\(part.id):body"])
+                for pin in part.part.pins {
+                    XCTAssertNotNil(frames.rects["part:\(part.id):\(pin.name)"])
+                }
+                for connection in part.connections {
+                    let source = connection.end.partID.map { "part:\($0)" } ?? "board"
+                    XCTAssertNotNil(frames.rects["\(source):\(connection.end.boardPin)"])
+                }
+            }
+        }
+    }
+
     @MainActor
     func testAmplifierHeaderMatchesPhysicalTopEdgeOrientation() throws {
         let amp = try XCTUnwrap(scan(radio).first)
-        for style in [BoardStyle.realistic, .blueprint] {
+        for style in BoardStyle.allCases {
             let frames = WiringFrames()
             let view = PartBoardView(detected: amp, pitch: 28)
                 .environment(\.boardStyle, style)

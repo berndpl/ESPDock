@@ -2,9 +2,21 @@ import SwiftUI
 
 /// How the board is drawn. Toggled by clicking the board; remembered in
 /// UserDefaults ("boardStyle").
-enum BoardStyle: String {
-    case realistic, blueprint
-    var toggled: BoardStyle { self == .realistic ? .blueprint : .realistic }
+enum BoardStyle: String, CaseIterable {
+    case realistic, blueprint, schematic
+
+    var toggled: BoardStyle {
+        switch self {
+        case .realistic: .blueprint
+        case .blueprint: .schematic
+        case .schematic: .realistic
+        }
+    }
+
+    var isLineDrawing: Bool { self != .realistic }
+    var ink: Color { self == .schematic ? .blue : Blueprint.ink }
+    var faint: Color { self == .schematic ? Color.blue.opacity(0.65) : Blueprint.faint }
+    var paper: Color { self == .blueprint ? Blueprint.paper : .clear }
 }
 
 /// Real-world dimensions of the board, scaled to points.
@@ -87,7 +99,8 @@ struct BoardBody: View {
                 // own click (pin guide), so they don't toggle.
                 .contentShape(.rect)
                 .onTapGesture(perform: onToggleStyle)
-                .help("Click the board to switch between realistic and blueprint")
+                .help("Click to cycle: Realistic → Blueprint → Blue schematic")
+                .accessibilityAction(named: "Next illustration style", onToggleStyle)
 
             if style == .realistic { passives }
 
@@ -123,6 +136,7 @@ struct BoardBody: View {
 
             B2BConnector(style: style, mm: mm)
                 .pinGuide(.b2bConnector, edge: .bottom)
+                .anchorPreference(key: WireAnchorKey.self, value: .bounds) { ["board:B2B": $0] }
                 .offset(x: 7.2 * mm, y: 18.2 * mm)
 
             USBCReceptacle(style: style, mm: mm)
@@ -140,7 +154,7 @@ struct BoardBody: View {
                     .offset(x: geo.width - EdgePad.length * mm, y: padY(i) - 0.9 * mm)
             }
 
-            if style == .blueprint { dimensions }
+            if style.isLineDrawing { dimensions }
         }
         .frame(width: geo.width, height: geo.height, alignment: .topLeading)
         .animation(.easeInOut(duration: 0.25), value: style)
@@ -159,8 +173,8 @@ struct BoardBody: View {
                 .overlay(shape.strokeBorder(LinearGradient(colors: [.white.opacity(0.22), .white.opacity(0.04)],
                                                            startPoint: .top, endPoint: .bottom), lineWidth: 1))
                 .shadow(color: .black.opacity(0.35), radius: 6, y: 3)
-        case .blueprint:
-            shape.fill(.clear).overlay(shape.stroke(Blueprint.ink, lineWidth: 1.25))
+        case .blueprint, .schematic:
+            shape.fill(.clear).overlay(shape.stroke(style.ink, lineWidth: 1.25))
         }
     }
 
@@ -246,20 +260,20 @@ private struct USBCReceptacle: View {
                         .strokeBorder(.black.opacity(0.25), lineWidth: 0.5))
                     .shadow(color: .black.opacity(0.45), radius: 2, y: 1.5)
 
-            case .blueprint:
+            case .blueprint, .schematic:
                 let shell = RoundedRectangle(cornerRadius: 0.7 * mm)
-                shell.stroke(Blueprint.ink, lineWidth: 1)
+                shell.stroke(style.ink, lineWidth: 1)
                     .frame(width: w, height: h)
                     .overlay(alignment: .top) {
                         // Front lip line + the plug's insertion arrow
-                        Rectangle().fill(Blueprint.ink).frame(height: 0.75).offset(y: 1.1 * mm)
+                        Rectangle().fill(style.ink).frame(height: 0.75).offset(y: 1.1 * mm)
                     }
                     .overlay {
                         VStack(spacing: 1) {
                             Image(systemName: "arrow.down").font(.system(size: 9, weight: .semibold))
                             Text("USB-C").font(.system(size: 8, weight: .medium, design: .monospaced))
                         }
-                        .foregroundStyle(Blueprint.faint)
+                        .foregroundStyle(style.faint)
                         .offset(y: 0.4 * mm)
                     }
             }
@@ -293,10 +307,10 @@ private struct TactileSwitch: View {
     var body: some View {
         // ~1.7 × 1.9 mm SMD switch: metal body, dark round plunger
         let w = 1.7 * mm, h = 1.9 * mm
-        let caption = Text(style == .blueprint ? (label == "R" ? "RST" : "BOOT") : label)
-            .font(style == .blueprint ? .system(size: 7, weight: .medium, design: .monospaced)
+        let caption = Text(style.isLineDrawing ? (label == "R" ? "RST" : "BOOT") : label)
+            .font(style.isLineDrawing ? .system(size: 7, weight: .medium, design: .monospaced)
                                       : .system(size: 8, weight: .heavy))
-            .foregroundStyle(style == .blueprint ? Blueprint.faint : .white.opacity(0.9))
+            .foregroundStyle(style.isLineDrawing ? style.faint : .white.opacity(0.9))
             .fixedSize()
 
         Group {
@@ -312,10 +326,10 @@ private struct TactileSwitch: View {
                         .frame(width: 0.95 * mm, height: 0.95 * mm)
                 }
                 .shadow(color: .black.opacity(0.4), radius: 1, y: 1)
-            case .blueprint:
+            case .blueprint, .schematic:
                 ZStack {
-                    RoundedRectangle(cornerRadius: 0.2 * mm).stroke(Blueprint.ink, lineWidth: 1)
-                    Circle().stroke(Blueprint.ink, lineWidth: 0.75).frame(width: 0.95 * mm, height: 0.95 * mm)
+                    RoundedRectangle(cornerRadius: 0.2 * mm).stroke(style.ink, lineWidth: 1)
+                    Circle().stroke(style.ink, lineWidth: 0.75).frame(width: 0.95 * mm, height: 0.95 * mm)
                 }
             }
         }
@@ -323,10 +337,10 @@ private struct TactileSwitch: View {
         // Silkscreen letter on the outer side, as on the board
         .overlay(alignment: labelSide == .leading ? .topLeading : .topTrailing) {
             caption
-                .padding(.horizontal, style == .blueprint ? 2 : 0)
-                .background(style == .blueprint ? Blueprint.paper : .clear)
+                .padding(.horizontal, style.isLineDrawing ? 2 : 0)
+                .background(style.paper)
                 .offset(x: labelSide == .leading ? -1.1 * mm : 1.1 * mm,
-                        y: style == .blueprint ? -1.0 * mm : 0)
+                        y: style.isLineDrawing ? -1.0 * mm : 0)
         }
     }
 }
@@ -350,7 +364,7 @@ private struct SMDLED: View {
                 .shadow(color: lit ? color : .clear, radius: 4)
                 .padding(0.25 * mm)
                 .overlay(RoundedRectangle(cornerRadius: 0.1 * mm).stroke(.white.opacity(0.75), lineWidth: 0.6))
-        case .blueprint:
+        case .blueprint, .schematic:
             // Schematic LED symbol: triangle + bar + emission arrow
             ZStack {
                 Path { p in
@@ -358,9 +372,9 @@ private struct SMDLED: View {
                     p.addLine(to: .init(x: 6, y: 4)); p.closeSubpath()
                     p.move(to: .init(x: 6, y: 0)); p.addLine(to: .init(x: 6, y: 8))
                 }
-                .stroke(Blueprint.ink, lineWidth: 0.9)
+                .stroke(style.ink, lineWidth: 0.9)
                 Image(systemName: "arrow.up.right").font(.system(size: 4, weight: .bold))
-                    .foregroundStyle(Blueprint.faint).offset(x: 6, y: -4)
+                    .foregroundStyle(style.faint).offset(x: 6, y: -4)
             }
             .frame(width: 7, height: 7)
             .scaleEffect(0.85)
@@ -398,15 +412,15 @@ private struct ModuleShield: View {
                 }
                 .frame(width: w, height: h)
                 .shadow(color: .black.opacity(0.35), radius: 2, y: 1.5)
-        case .blueprint:
-            shape.stroke(Blueprint.ink, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+        case .blueprint, .schematic:
+            shape.stroke(style.ink, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
                 .frame(width: w, height: h)
                 .overlay {
                     VStack(spacing: 2) {
                         Text("ESP32-S3").font(.system(size: 10, weight: .semibold, design: .monospaced))
                         Text("RF SHIELD").font(.system(size: 7, design: .monospaced))
                     }
-                    .foregroundStyle(Blueprint.faint)
+                    .foregroundStyle(style.faint)
                 }
         }
     }
@@ -431,18 +445,18 @@ private struct UFLConnector: View {
                 Circle().fill(Color(white: 0.2)).frame(width: s * 0.35, height: s * 0.35)
             }
             .frame(width: s * 1.15, height: s * 1.15)
-        case .blueprint:
+        case .blueprint, .schematic:
             ZStack {
-                Circle().stroke(Blueprint.ink, lineWidth: 1)
+                Circle().stroke(style.ink, lineWidth: 1)
                 Path { p in
                     p.move(to: .init(x: s / 2, y: -2)); p.addLine(to: .init(x: s / 2, y: s + 2))
                     p.move(to: .init(x: -2, y: s / 2)); p.addLine(to: .init(x: s + 2, y: s / 2))
                 }
-                .stroke(Blueprint.faint, lineWidth: 0.5)
+                .stroke(style.faint, lineWidth: 0.5)
             }
             .frame(width: s, height: s)
             .overlay(alignment: .trailing) {
-                Text("ANT").font(.system(size: 7, design: .monospaced)).foregroundStyle(Blueprint.faint)
+                Text("ANT").font(.system(size: 7, design: .monospaced)).foregroundStyle(style.faint)
                     .fixedSize().offset(x: 18)
             }
         }
@@ -475,10 +489,10 @@ struct EdgePad: View {
                                                    Color(red: 0.76, green: 0.57, blue: 0.24)],
                                           startPoint: .top, endPoint: .bottom))
                 hole.foregroundStyle(Color(white: 0.07)).offset(x: holeX)
-            case .blueprint:
-                shape.stroke(Blueprint.ink, lineWidth: 0.9)
+            case .blueprint, .schematic:
+                shape.stroke(style.ink, lineWidth: 0.9)
                 hole.foregroundStyle(.clear)
-                    .overlay(Circle().stroke(Blueprint.ink, lineWidth: 0.9))
+                    .overlay(Circle().stroke(style.ink, lineWidth: 0.9))
                     .offset(x: holeX)
             }
         }
@@ -505,11 +519,11 @@ private struct B2BConnector: View {
             }
             .frame(width: w, height: h)
             .overlay(RoundedRectangle(cornerRadius: 0.2 * mm).stroke(.white.opacity(0.12), lineWidth: 0.5))
-        case .blueprint:
+        case .blueprint, .schematic:
             RoundedRectangle(cornerRadius: 0.2 * mm)
-                .stroke(Blueprint.ink, style: StrokeStyle(lineWidth: 0.9, dash: [3, 2]))
+                .stroke(style.ink, style: StrokeStyle(lineWidth: 0.9, dash: [3, 2]))
                 .frame(width: w, height: h)
-                .overlay(Text("B2B").font(.system(size: 7, design: .monospaced)).foregroundStyle(Blueprint.faint))
+                .overlay(Text("B2B").font(.system(size: 7, design: .monospaced)).foregroundStyle(style.faint))
         }
     }
 
@@ -543,6 +557,7 @@ private struct DimensionLine: View {
     let length: CGFloat
     let label: String
     let vertical: Bool
+    @Environment(\.boardStyle) private var style
 
     var body: some View {
         ZStack {
@@ -557,13 +572,13 @@ private struct DimensionLine: View {
                     p.move(to: .init(x: length, y: -4)); p.addLine(to: .init(x: length, y: 4))
                 }
             }
-            .stroke(Blueprint.faint, lineWidth: 0.75)
+            .stroke(style.faint, lineWidth: 0.75)
 
             Text(label)
                 .font(.system(size: 8, weight: .medium, design: .monospaced))
-                .foregroundStyle(Blueprint.ink)
+                .foregroundStyle(style.ink)
                 .padding(.horizontal, 2)
-                .background(Blueprint.paper)
+                .background(style.paper)
                 .rotationEffect(vertical ? .degrees(-90) : .zero)
                 .position(x: vertical ? 0 : length / 2, y: vertical ? length / 2 : 0)
         }

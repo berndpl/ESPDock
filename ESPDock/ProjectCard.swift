@@ -276,9 +276,6 @@ struct ProjectCard: View {
                 Button("Add Version Reporting…") { installVersionReporting(link) }
                     .controlSize(.small)
             }
-        } else if firmware.state(for: board) == .noAnswer, firmware.report(for: board) == nil {
-            Text("Version reporting is installed — deploy, and make sure setup() calls ESPDock::begin().")
-                .font(.caption).foregroundStyle(.secondary)
         }
     }
 

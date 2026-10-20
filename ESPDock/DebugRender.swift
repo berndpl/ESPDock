@@ -105,6 +105,7 @@ enum DebugRender {
                     let from: String
                     switch c.origin {
                     case let .code(file, line, expr): from = "\(file):\(line) \(expr)"
+                    case let .documented(file, note): from = "\(file) — \(note)"
                     case let .assumed(why): from = "assumed — \(why)"
                     }
                     print("  \(c.partPin) ← \(c.end.partID.map { "\($0) " } ?? "")\(c.end.boardPin)\(c.end.gpio.map { " (GPIO\($0))" } ?? "")  \(from)")
@@ -121,7 +122,7 @@ enum DebugRender {
         let wifiMode = args.contains("--render-wifi")
         // --render-disconnected <out.png> [dark|light]: the tall empty-state layout.
         let disconnectedMode = args.contains("--render-disconnected")
-        // --render-wiring <out.png> [dark|light] <project> [blueprint]: the pinout
+        // --render-wiring <out.png> [dark|light] <project> [realistic|blueprint|schematic]: the pinout
         // card with the external parts found in that project's code.
         // Add --power-details to expand its power calculation without a device.
         let wiringMode = args.contains("--render-wiring")
@@ -138,7 +139,7 @@ enum DebugRender {
         let monitor = BoardMonitor()
         let projects = ProjectLinks()
         let firmware = FirmwareProbe()
-        if !disconnectedMode {
+        if !disconnectedMode && !wiringMode {
             projects.watch(monitor.board)
             if let board = monitor.board { firmware.probe(board, after: .zero) }
             RunLoop.main.run(until: Date().addingTimeInterval(3.0))
@@ -150,17 +151,21 @@ enum DebugRender {
             RunLoop.main.run(until: Date().addingTimeInterval(1.5))
         }
         if wiringMode, args.count > i + 3 {
+            let rawStyle = args.count > i + 4 ? args[i + 4] : BoardStyle.realistic.rawValue
+            guard let style = BoardStyle(rawValue: rawStyle) else {
+                print("Unknown illustration style: \(rawStyle)")
+                exit(1)
+            }
             // Argument domain: wins over the user's setting but isn't saved.
             UserDefaults.standard.setVolatileDomain(
-                ["boardStyle": args.count > i + 4 && args[i + 4] == "blueprint" ? "blueprint" : "realistic"],
+                ["boardStyle": style.rawValue],
                 forName: UserDefaults.argumentDomain)
         }
         let wiringParts = wiringMode && args.count > i + 3
             ? PeripheralScanner.scan(projectAt: URL(fileURLWithPath: args[i + 3]), board: BoardCatalog.xiaoESP32S3)
             : []
         let content: AnyView = disconnectedMode
-            ? AnyView(DisconnectedStateView(otherPorts: monitor.otherPorts, blockedPorts: monitor.blockedPorts,
-                                            wireless: WirelessController())
+            ? AnyView(DisconnectedStateView(blockedPorts: monitor.blockedPorts, wireless: WirelessController())
                 .padding(20).frame(width: ContentView.width, height: 1040))
             : wiringMode
             ? AnyView(GroupBox {

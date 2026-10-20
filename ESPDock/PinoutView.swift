@@ -32,7 +32,7 @@ struct PinoutView: View {
                 }
                 .frame(maxWidth: .infinity)
                 // Room for the blueprint's dimension line under the board; kept in
-                // both styles so toggling doesn't shift the layout.
+                // every style so cycling doesn't shift the layout.
                 .padding(.top, 28)   // clears the 1.8 mm USB-C overhang
                 .padding(.bottom, 30)
                 .overlay(alignment: .topTrailing) {
@@ -66,7 +66,7 @@ struct PinoutView: View {
                 }
             }
 
-            // Outside the blueprint paper, so it stays readable in both styles.
+            // Outside the blueprint paper, so it stays readable in every style.
             if !parts.isEmpty {
                 if let (part, connection) = selectedConnection {
                     HStack {
@@ -134,10 +134,14 @@ private struct PinLabel: View {
             if side == .left, let gpio = pin.gpio { gpioText(gpio) }
             Text(pin.label)
                 .font(.system(size: 12, weight: .bold, design: .monospaced))
-                .foregroundStyle(.white)
+                .foregroundStyle(style == .schematic ? style.ink : .white)
                 .frame(minWidth: 30)
                 .padding(.vertical, 2)
-                .background(pin.role.color, in: .rect(cornerRadius: 4))
+                .background(style == .schematic ? .clear : pin.role.color, in: .rect(cornerRadius: 4))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 4)
+                        .strokeBorder(style == .schematic ? style.ink : .clear, lineWidth: 1)
+                }
             if side == .right, let gpio = pin.gpio { gpioText(gpio) }
             if side == .left { Leader() }
         }
@@ -147,7 +151,7 @@ private struct PinLabel: View {
     private func gpioText(_ gpio: Int) -> some View {
         Text("GPIO\(gpio)")
             .font(.system(size: 11, design: .monospaced))
-            .foregroundStyle(style == .blueprint ? AnyShapeStyle(Blueprint.faint) : AnyShapeStyle(.secondary))
+            .foregroundStyle(style.isLineDrawing ? AnyShapeStyle(style.faint) : AnyShapeStyle(.secondary))
     }
 }
 
@@ -155,7 +159,7 @@ private struct Leader: View {
     @Environment(\.boardStyle) private var style
     var body: some View {
         Rectangle()
-            .fill(style == .blueprint ? AnyShapeStyle(Blueprint.faint) : AnyShapeStyle(.tertiary))
+            .fill(style.isLineDrawing ? AnyShapeStyle(style.faint) : AnyShapeStyle(.tertiary))
             .frame(width: 16, height: 1)
     }
 }

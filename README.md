@@ -12,8 +12,11 @@ builds and uploads your PlatformIO project to it.
   USB VID:PID, serial number / MAC, which Mac port it's on, cable e-marker,
   link speed and USB power budget. Hints when macOS accessory security blocks
   a board's data connection.
-- **Pinout diagram** (XIAO ESP32S3) drawn to scale, in realistic and blueprint
-  styles, with per-pin popovers showing Arduino snippets.
+- **Pinout diagram** (XIAO ESP32S3) drawn to scale, with per-pin popovers
+  showing Arduino snippets. Repeated clicks on the bare board cycle through
+  **Realistic → Blueprint → Blue schematic → Realistic**. Blue schematic uses
+  transparent backgrounds and blue outlines, labels and wires; the last style
+  is remembered. Pin popovers and wire highlighting keep their own clicks.
 - **Linked PlatformIO project** per board: open it in VS Code, see when source
   files changed, and **Build & Deploy** via `pio` with live progress.
 - **Firmware version reporting**: an optional firmware library makes the board
@@ -30,8 +33,10 @@ builds and uploads your PlatformIO project to it.
   priority; uploads remain USB-only.
   With no board connected, the empty state fills the available space and the
   Wi-Fi connection status stays at the bottom. Incidental serial-port paths
-  are available under **Connection details**, not shown inline.
-- **Project wiring diagram** for a MAX98357A I²S amplifier and volume buttons,
+  are hidden; actionable macOS accessory-security warnings remain visible.
+- **Project hardware diagram** loaded automatically from a project's `hardware.json`,
+  including carriers, displays, cameras and batteries even when firmware does not
+  initialize them. Projects without that file retain source detection for a MAX98357A I²S amplifier and volume buttons,
   with source locations and shared-pin warnings. Speaker wiring and switch
   return wires are shown dashed as assumptions, not detected hardware. Hover
   a wire to trace it; click to keep it highlighted while checking the hardware.
@@ -54,6 +59,61 @@ builds and uploads your PlatformIO project to it.
   `~/.platformio/penv/bin/pio` (for Build & Deploy)
 - Optional: [XcodeGen](https://github.com/yonaskolb/XcodeGen) to regenerate the
   project from `project.yml`
+
+## Project-local hardware description
+
+Place `hardware.json` next to `platformio.ini`. ESPDock loads it when the project
+is linked or reopened and watches it for changes. The file travels with the
+project; it does not live in app preferences or require a firmware upload.
+It is authoritative when present, so source detection does not create duplicate
+parts. Without it, the existing radio/source scanner works as before.
+
+For example, an attached battery with no measured charge information:
+
+```json
+{
+  "schemaVersion": 1,
+  "board": "seeed_xiao_esp32s3",
+  "components": [{
+    "id": "battery",
+    "name": "Battery",
+    "kind": "battery",
+    "summary": "Attached battery; charge level is not measured.",
+    "pins": [
+      {"name": "+", "detail": "Positive"},
+      {"name": "-", "detail": "Negative"}
+    ],
+    "connections": []
+  }]
+}
+```
+
+`board` must match the selected board's PlatformIO ID. Component IDs and each
+component's pin names must be unique. Supported `kind` values are `generic`,
+`carrier`, `display`, `camera` and `battery`; terminals are functional labels,
+not a claimed physical pin layout. Optional `resources` contain a `title` and
+absolute HTTPS `url`; optional `issues` are strings shown in Wiring details.
+Display, camera and battery kinds use reusable component illustrations in
+ESPDock, not project-local artwork. These are approximate silhouettes, not
+verified dimensions, connector positions or physical pin layouts.
+
+A connection specifies destination `pin`, `sourcePin`, and an evidence `note`.
+Omit `sourcePart` for a microcontroller header pin or a catalogued connector
+(`B2B` on the XIAO); otherwise use another component's ID. Source parts may
+appear later in the file. For example:
+
+```json
+{"pin": "FPC", "sourcePart": "epaper-driver", "sourcePin": "FPC",
+ "note": "24-pin ribbon fitted to the carrier; not a continuity measurement."}
+```
+
+Every endpoint must exist. Invalid JSON, incompatible boards, duplicate IDs,
+unknown endpoints and invalid resource links produce a visible hardware error,
+not silent fallback to guessed wiring. Declared wires are labeled `hardware.json`
+and remain documentation, not proof of physical presence or electrical safety.
+Unknown camera variants, battery ratings and charge levels should stay explicitly
+unknown. Components without power profiles make the power estimate incomplete.
+Hardware metadata is not part of the firmware source fingerprint.
 
 ## Project power estimate
 

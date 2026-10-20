@@ -80,6 +80,7 @@ struct BoardModel: Identifiable, Hashable {
     let referenceURL: URL
     let schematicURL: URL
     var powerProfile: BoardPowerProfile? = nil
+    var connectors: [String] = []
 
     func pins(on side: Pin.Side) -> [Pin] { pins.filter { $0.side == side } }
 }
@@ -162,7 +163,8 @@ enum BoardCatalog {
             resources: [
                 ComponentResource(title: "ESP32-S3 supply guidelines",
                     url: URL(string: "https://docs.espressif.com/projects/esp-hardware-design-guidelines/en/latest/esp32s3/schematic-checklist.html#power-supply")!),
-            ]))
+            ]),
+        connectors: ["B2B"])
 }
 
 /// Remembers which board model a physical board is, keyed by its MAC address

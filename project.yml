@@ -28,6 +28,8 @@ targets:
         buildPhase: resources
     settings:
       base:
+        MARKETING_VERSION: "0.2"
+        CURRENT_PROJECT_VERSION: "3"
         DEVELOPMENT_TEAM: DNKZNVGEK5
         CODE_SIGN_IDENTITY: Apple Development
         "CODE_SIGN_IDENTITY[sdk=macosx*]": Apple Development

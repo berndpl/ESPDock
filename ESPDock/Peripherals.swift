@@ -3,7 +3,7 @@ import Foundation
 // MARK: - Parts catalog
 
 /// A pin on an external part's header.
-struct PartPin: Hashable, Sendable {
+struct PartPin: Hashable, Sendable, Decodable {
     let name: String      // silkscreen, e.g. "BCLK"
     let detail: String    // what it does, shown in the legend
 }
@@ -17,6 +17,9 @@ struct ComponentResource: Hashable, Sendable, Identifiable {
 
 /// An external board ESPDock can recognise from code.
 struct PartModel: Hashable, Sendable {
+    enum Kind: String, Sendable, Decodable {
+        case generic, carrier, display, camera, battery
+    }
     let id: String
     let name: String
     let summary: String
@@ -25,6 +28,7 @@ struct PartModel: Hashable, Sendable {
     var modelName: String? = nil
     var resources: [ComponentResource] = []
     var speakerImpedanceOhms: Int? = nil
+    var kind: Kind = .generic
 
     // Pin names, order and meaning: Adafruit "MAX98357 I2S Class-D Mono Amp"
     // guide (pinouts page) and the Maxim MAX98357A datasheet. With the header
@@ -95,6 +99,7 @@ struct PartConnection: Hashable, Sendable, Identifiable {
     enum Origin: Hashable, Sendable {
         /// Read from the code at file:line (relative to the project).
         case code(file: String, line: Int, expression: String)
+        case documented(file: String, note: String)
         /// Not in the code; the conventional hookup.
         case assumed(String)
     }
@@ -117,6 +122,116 @@ struct DetectedPart: Hashable, Sendable, Identifiable {
     let issues: [String]
 }
 
+private struct ProjectHardware: Decodable {
+    let schemaVersion: Int
+    let board: String
+    let components: [Component]
+
+    struct Component: Decodable {
+        let id: String
+        let name: String
+        let kind: PartModel.Kind
+        let summary: String
+        let pins: [PartPin]
+        let connections: [Connection]
+        let resources: [Resource]?
+        let issues: [String]?
+    }
+
+    struct Connection: Decodable {
+        let pin: String
+        let sourcePart: String?
+        let sourcePin: String
+        let note: String
+    }
+
+    struct Resource: Decodable {
+        let title: String
+        let url: URL
+    }
+
+    enum Invalid: LocalizedError {
+        case description(String)
+        var errorDescription: String? {
+            switch self { case .description(let text): text }
+        }
+    }
+
+    static func load(projectAt root: URL, board: BoardModel) -> [DetectedPart]? {
+        let file = root.appendingPathComponent("hardware.json")
+        guard FileManager.default.fileExists(atPath: file.path) else { return nil }
+        do {
+            let manifest = try JSONDecoder().decode(Self.self, from: Data(contentsOf: file))
+            return try manifest.parts(for: board)
+        } catch {
+            let detail = "hardware.json: \(error.localizedDescription)"
+            return [DetectedPart(
+                part: PartModel(id: "hardware-manifest-error", name: "Hardware description error",
+                                summary: detail, pins: []),
+                namedInCode: false, connections: [], issues: [detail])]
+        }
+    }
+
+    private func parts(for model: BoardModel) throws -> [DetectedPart] {
+        func require(_ valid: Bool, _ message: String) throws {
+            if !valid { throw Invalid.description(message) }
+        }
+        func nonempty(_ text: String) -> Bool {
+            !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        try require(schemaVersion == 1, "Unsupported schemaVersion \(schemaVersion); expected 1.")
+        try require(board == model.platformIOBoard, "Board \(board) does not match \(model.platformIOBoard).")
+        try require(Set(components.map(\.id)).count == components.count, "Component IDs must be unique.")
+        for component in components {
+            try require(nonempty(component.id) && nonempty(component.name) && nonempty(component.summary),
+                        "Each component requires a nonempty id, name and summary.")
+            try require(Set(component.pins.map(\.name)).count == component.pins.count,
+                        "\(component.id): pin names must be unique.")
+            try require(component.pins.allSatisfy { nonempty($0.name) && nonempty($0.detail) },
+                        "\(component.id): pins require a name and detail.")
+            try require(Set(component.connections.map(\.pin)).count == component.connections.count,
+                        "\(component.id): each destination pin may have only one connection.")
+            for resource in component.resources ?? [] {
+                try require(nonempty(resource.title) && resource.url.scheme == "https" && resource.url.host != nil,
+                            "\(component.id): resource links require a title and an absolute HTTPS URL.")
+            }
+        }
+        return try components.map { component in
+            let connections = try component.connections.map { connection -> PartConnection in
+                try require(component.pins.contains { $0.name == connection.pin },
+                            "\(component.id): unknown destination pin \(connection.pin).")
+                try require(nonempty(connection.note), "\(component.id): every connection needs an evidence note.")
+                let gpio: Int?
+                if let sourceID = connection.sourcePart {
+                    try require(sourceID != component.id, "\(component.id): self-connections are not supported.")
+                    try require(components.contains {
+                        $0.id == sourceID && $0.pins.contains { $0.name == connection.sourcePin }
+                    }, "\(component.id): unknown source \(sourceID):\(connection.sourcePin).")
+                    gpio = nil
+                } else if let pin = model.pins.first(where: { $0.label == connection.sourcePin }) {
+                    gpio = pin.gpio
+                } else {
+                    try require(model.connectors.contains(connection.sourcePin),
+                                "\(component.id): unknown board pin or connector \(connection.sourcePin).")
+                    gpio = nil
+                }
+                return PartConnection(
+                    partPin: connection.pin,
+                    end: WireEnd(boardPin: connection.sourcePin, gpio: gpio, partID: connection.sourcePart),
+                    origin: .documented(file: "hardware.json", note: connection.note))
+            }
+            return DetectedPart(
+                part: PartModel(
+                    id: component.id, name: component.name, summary: component.summary, pins: component.pins,
+                    resources: (component.resources ?? []).map {
+                        ComponentResource(title: $0.title, url: $0.url,
+                                          symbol: $0.url.pathExtension == "pdf" ? "doc" : "book")
+                    }, kind: component.kind),
+                namedInCode: false, connections: connections, issues: component.issues ?? [])
+        }
+    }
+}
+
 // MARK: - Scanner
 
 /// Finds external parts and their expected wiring in a PlatformIO project by
@@ -135,6 +250,9 @@ struct DetectedPart: Hashable, Sendable, Identifiable {
 enum PeripheralScanner {
     static func scan(projectAt root: URL, board: BoardModel) -> [DetectedPart] {
         let root = root.resolvingSymlinksInPath().standardizedFileURL
+        if let declared = ProjectHardware.load(projectAt: root, board: board) {
+            return checkingSharedPins(declared)
+        }
         let files = sourceFiles(in: root)
         var symbols: [String: String] = [:]
         var texts: [(path: String, raw: String, code: String)] = []
@@ -162,6 +280,10 @@ enum PeripheralScanner {
             ], issues: []))
         }
         parts += findVolumeButtons(texts, symbols: symbols, board: board, nuphy: nuphy)
+        return checkingSharedPins(parts)
+    }
+
+    private static func checkingSharedPins(_ parts: [DetectedPart]) -> [DetectedPart] {
         return parts.map { part in
             var issues = part.issues
             for connection in part.connections {
@@ -178,7 +300,7 @@ enum PeripheralScanner {
     }
 
     static func hardwareNotes(projectAt root: URL) -> String {
-        ["README.md", "WIRING.md", "brief-radio.md"].compactMap {
+        ["README.md", "WIRING.md", "brief-radio.md", "hardware.json"].compactMap {
             try? String(contentsOf: root.appendingPathComponent($0), encoding: .utf8)
         }.joined(separator: "\n")
     }

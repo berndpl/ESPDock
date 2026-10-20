@@ -37,8 +37,7 @@ struct ContentView: View {
                         .id(projects.link(for: board)?.path)
                 }
             } else {
-                DisconnectedStateView(otherPorts: monitor.otherPorts, blockedPorts: monitor.blockedPorts,
-                                      wireless: wireless)
+                DisconnectedStateView(blockedPorts: monitor.blockedPorts, wireless: wireless)
             }
         }
         .padding(20)
@@ -265,13 +264,12 @@ private struct StatusCard: View {
 }
 
 struct DisconnectedStateView: View {
-    let otherPorts: [String]
     let blockedPorts: [String]
     let wireless: WirelessController
 
     var body: some View {
         VStack(spacing: 12) {
-            EmptyState(otherPorts: otherPorts, blockedPorts: blockedPorts)
+            EmptyState(blockedPorts: blockedPorts)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             WirelessStatusView(wireless: wireless)
         }
@@ -282,9 +280,7 @@ struct DisconnectedStateView: View {
 /// No board: the system empty-state view, plus the accessory-security hint
 /// when macOS is blocking a device's data connection.
 private struct EmptyState: View {
-    let otherPorts: [String]
     let blockedPorts: [String]
-    @State private var showPorts = false
 
     var body: some View {
         VStack(spacing: 12) {
@@ -292,30 +288,6 @@ private struct EmptyState: View {
                 Label("No Board Connected", systemImage: "cable.connector.slash")
             } description: {
                 Text("Plug in an ESP32 with a USB data cable, or connect a paired board over Wi-Fi.")
-            } actions: {
-                if !otherPorts.isEmpty {
-                    Button("Connection details", systemImage: "info.circle") {
-                        showPorts.toggle()
-                    }
-                    .font(.caption)
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("connection-details")
-                    .popover(isPresented: $showPorts) {
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Detected serial ports").font(.headline)
-                                ForEach(otherPorts, id: \.self) { port in
-                                    Text(port).font(.caption.monospaced())
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                }
-                            }
-                            .textSelection(.enabled)
-                            .padding(16)
-                        }
-                        .frame(width: 320, height: 180)
-                    }
-                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             if !blockedPorts.isEmpty {
