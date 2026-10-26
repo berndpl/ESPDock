@@ -9,8 +9,7 @@ settings:
     SWIFT_STRICT_CONCURRENCY: complete
     MARKETING_VERSION: "0.1"
     CURRENT_PROJECT_VERSION: "1"
-    # No team selected yet for this new project: sign to run locally only.
-    # Pick a Team in Xcode when needed; it will be preserved on regeneration.
+    # App signing follows its Xcode-selected Team below; tests stay ad-hoc.
     CODE_SIGN_IDENTITY: "-"
     CODE_SIGN_STYLE: Manual
     ENABLE_USER_SCRIPT_SANDBOXING: NO
@@ -20,16 +19,28 @@ targets:
     platform: macOS
     sources:
       - ESPDock
+      - path: ESPDock/Assets.xcassets/AppIcon.icon
+        type: file
+        buildPhase: resources
       # Firmware library copied into projects by "Add Version Reporting…"
       - path: FirmwareLib
         type: folder
         buildPhase: resources
     settings:
       base:
+        MARKETING_VERSION: "0.2"
+        CURRENT_PROJECT_VERSION: "4"
+        DEVELOPMENT_TEAM: DNKZNVGEK5
+        CODE_SIGN_IDENTITY: Apple Development
+        "CODE_SIGN_IDENTITY[sdk=macosx*]": Apple Development
+        CODE_SIGN_STYLE: Automatic
+        PROVISIONING_PROFILE_SPECIFIER: ""
         PRODUCT_BUNDLE_IDENTIFIER: de.plontsch.ESPDock
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: ESPDock
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.developer-tools
+        INFOPLIST_KEY_NSLocalNetworkUsageDescription: Connect to a paired ESP32 on your local network for read-only logs and firmware identity.
         # No App Sandbox: the app must read IOKit serial devices and (later)
         # run ~/.platformio/penv/bin/pio. Personal tool, not distributed.
         ENABLE_APP_SANDBOX: NO
@@ -50,3 +61,13 @@ targets:
           BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           /usr/libexec/PlistBuddy -c "Set :BuildDate ${BUILD_DATE}" "${PLIST}" 2>/dev/null \
             || /usr/libexec/PlistBuddy -c "Add :BuildDate string ${BUILD_DATE}" "${PLIST}"
+  ESPDockTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - ESPDockTests
+    dependencies:
+      - target: ESPDock
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES

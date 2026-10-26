@@ -1,4 +1,7 @@
 build/
+.build-local/
+/dist/
+/default.profraw
 DerivedData/
 *.xcuserstate
 xcuserdata/

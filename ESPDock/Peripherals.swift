@@ -3,50 +3,103 @@ import Foundation
 // MARK: - Parts catalog
 
 /// A pin on an external part's header.
-struct PartPin: Hashable, Sendable {
+struct PartPin: Hashable, Sendable, Decodable {
     let name: String      // silkscreen, e.g. "BCLK"
     let detail: String    // what it does, shown in the legend
 }
 
+struct ComponentResource: Hashable, Sendable, Identifiable {
+    var id: String { url.absoluteString }
+    let title: String
+    let url: URL
+    var symbol: String = "book"
+}
+
 /// An external board ESPDock can recognise from code.
 struct PartModel: Hashable, Sendable {
+    enum Kind: String, Sendable, Decodable {
+        case generic, carrier, display, camera, battery
+    }
     let id: String
     let name: String
     let summary: String
     /// Header pins in physical order, left → right, as printed on the board.
     let pins: [PartPin]
+    var modelName: String? = nil
+    var resources: [ComponentResource] = []
+    var speakerImpedanceOhms: Int? = nil
+    var kind: Kind = .generic
 
     // Pin names, order and meaning: Adafruit "MAX98357 I2S Class-D Mono Amp"
-    // guide (pinouts page) and the Maxim MAX98357A datasheet. The 7-pin header
-    // order LRC · BCLK · DIN · GAIN · SD · GND · Vin is the common breakout.
+    // guide (pinouts page) and the Maxim MAX98357A datasheet. With the header
+    // along the top edge as drawn, Vin is on the left and LRC on the right.
     // https://learn.adafruit.com/adafruit-max98357-i2s-class-d-mono-amp/pinouts
     static let max98357a = PartModel(
         id: "max98357a",
         name: "MAX98357A",
         summary: "I²S class-D mono amplifier · 3 W into 4 Ω at 5 V",
         pins: [
-            PartPin(name: "LRC", detail: "Word select (left/right clock), a.k.a. WS / LRCLK"),
-            PartPin(name: "BCLK", detail: "Bit clock"),
-            PartPin(name: "DIN", detail: "Audio data from the ESP32 (its DOUT)"),
-            PartPin(name: "GAIN", detail: "Unconnected = 9 dB; to GND = 12 dB; to Vin = 6 dB"),
-            PartPin(name: "SD", detail: "Shutdown / channel select. Low = off; floating = (L+R)/2"),
-            PartPin(name: "GND", detail: "Ground, shared with the XIAO"),
             PartPin(name: "Vin", detail: "2.5–5.5 V. 5 V gives the most volume"),
+            PartPin(name: "GND", detail: "Ground, shared with the XIAO"),
+            PartPin(name: "SD", detail: "Shutdown / channel select. Low = off; floating = (L+R)/2"),
+            PartPin(name: "GAIN", detail: "Unconnected = 9 dB; to GND = 12 dB; to Vin = 6 dB"),
+            PartPin(name: "DIN", detail: "Audio data from the ESP32 (its DOUT)"),
+            PartPin(name: "BCLK", detail: "Bit clock"),
+            PartPin(name: "LRC", detail: "Word select (left/right clock), a.k.a. WS / LRCLK"),
+        ],
+        resources: [
+            ComponentResource(title: "Adafruit guide", url: URL(string: "https://learn.adafruit.com/adafruit-max98357-i2s-class-d-mono-amp")!),
+            ComponentResource(title: "Reference breakout schematic", url: URL(string: "https://cdn-learn.adafruit.com/assets/assets/000/032/642/original/adafruit_products_schem.png?1464034817")!, symbol: "doc"),
+            ComponentResource(title: "MAX98357A datasheet", url: URL(string: "https://cdn-shop.adafruit.com/product-files/3006/MAX98357A-MAX98357B.pdf")!, symbol: "doc"),
         ])
+
+    static let speaker = PartModel(
+        id: "speaker", name: "Speaker",
+        summary: "Assumed passive speaker · check its rating before connecting",
+        pins: [
+            PartPin(name: "+", detail: "Amplifier OUT+, not an ESP32 GPIO"),
+            PartPin(name: "−", detail: "Amplifier OUT−, not ground"),
+        ])
+
+    static let daytonPC83 = PartModel(
+        id: "speaker", name: "Dayton Audio PC83-8",
+        summary: "Full-range speaker · 8 Ω",
+        pins: speaker.pins,
+        resources: [
+            ComponentResource(title: "Product specifications", url: URL(string: "https://www.parts-express.com/Dayton-Audio-PC83-8-3-Full-Range-Poly-Cone-Driver-295-150")!),
+        ],
+        speakerImpedanceOhms: 8)
+
+    static func volumeButton(up: Bool, nuphy: Bool = false) -> PartModel {
+        PartModel(id: up ? "volume-up" : "volume-down",
+                  name: up ? "Volume up" : "Volume down",
+                  summary: nuphy ? "NuPhy mechanical switch · exact variant unspecified" : "Momentary switch",
+                  pins: [
+                    PartPin(name: "1", detail: "GPIO input"),
+                    PartPin(name: "2", detail: "Other switch contact; hookup inferred from input mode"),
+                  ],
+                  modelName: nuphy ? "NuPhy switch" : nil,
+                  resources: nuphy ? [
+                    ComponentResource(title: "NuPhy switches", url: URL(string: "https://nuphy.com/collections/switches")!),
+                  ] : [])
+    }
 }
 
 // MARK: - Detection result
 
 struct WireEnd: Hashable, Sendable {
-    let boardPin: String   // XIAO silkscreen, e.g. "D1", "5V"
+    let boardPin: String   // Source pin label, e.g. "D1", "5V", "OUT+"
     let gpio: Int?
+    /// Nil means the microcontroller; otherwise an external part's ID.
+    var partID: String? = nil
 }
 
-/// One expected wire between a XIAO pin and a part pin.
+/// One expected wire from a source board or part to a part pin.
 struct PartConnection: Hashable, Sendable, Identifiable {
     enum Origin: Hashable, Sendable {
         /// Read from the code at file:line (relative to the project).
         case code(file: String, line: Int, expression: String)
+        case documented(file: String, note: String)
         /// Not in the code; the conventional hookup.
         case assumed(String)
     }
@@ -69,6 +122,116 @@ struct DetectedPart: Hashable, Sendable, Identifiable {
     let issues: [String]
 }
 
+private struct ProjectHardware: Decodable {
+    let schemaVersion: Int
+    let board: String
+    let components: [Component]
+
+    struct Component: Decodable {
+        let id: String
+        let name: String
+        let kind: PartModel.Kind
+        let summary: String
+        let pins: [PartPin]
+        let connections: [Connection]
+        let resources: [Resource]?
+        let issues: [String]?
+    }
+
+    struct Connection: Decodable {
+        let pin: String
+        let sourcePart: String?
+        let sourcePin: String
+        let note: String
+    }
+
+    struct Resource: Decodable {
+        let title: String
+        let url: URL
+    }
+
+    enum Invalid: LocalizedError {
+        case description(String)
+        var errorDescription: String? {
+            switch self { case .description(let text): text }
+        }
+    }
+
+    static func load(projectAt root: URL, board: BoardModel) -> [DetectedPart]? {
+        let file = root.appendingPathComponent("hardware.json")
+        guard FileManager.default.fileExists(atPath: file.path) else { return nil }
+        do {
+            let manifest = try JSONDecoder().decode(Self.self, from: Data(contentsOf: file))
+            return try manifest.parts(for: board)
+        } catch {
+            let detail = "hardware.json: \(error.localizedDescription)"
+            return [DetectedPart(
+                part: PartModel(id: "hardware-manifest-error", name: "Hardware description error",
+                                summary: detail, pins: []),
+                namedInCode: false, connections: [], issues: [detail])]
+        }
+    }
+
+    private func parts(for model: BoardModel) throws -> [DetectedPart] {
+        func require(_ valid: Bool, _ message: String) throws {
+            if !valid { throw Invalid.description(message) }
+        }
+        func nonempty(_ text: String) -> Bool {
+            !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        try require(schemaVersion == 1, "Unsupported schemaVersion \(schemaVersion); expected 1.")
+        try require(board == model.platformIOBoard, "Board \(board) does not match \(model.platformIOBoard).")
+        try require(Set(components.map(\.id)).count == components.count, "Component IDs must be unique.")
+        for component in components {
+            try require(nonempty(component.id) && nonempty(component.name) && nonempty(component.summary),
+                        "Each component requires a nonempty id, name and summary.")
+            try require(Set(component.pins.map(\.name)).count == component.pins.count,
+                        "\(component.id): pin names must be unique.")
+            try require(component.pins.allSatisfy { nonempty($0.name) && nonempty($0.detail) },
+                        "\(component.id): pins require a name and detail.")
+            try require(Set(component.connections.map(\.pin)).count == component.connections.count,
+                        "\(component.id): each destination pin may have only one connection.")
+            for resource in component.resources ?? [] {
+                try require(nonempty(resource.title) && resource.url.scheme == "https" && resource.url.host != nil,
+                            "\(component.id): resource links require a title and an absolute HTTPS URL.")
+            }
+        }
+        return try components.map { component in
+            let connections = try component.connections.map { connection -> PartConnection in
+                try require(component.pins.contains { $0.name == connection.pin },
+                            "\(component.id): unknown destination pin \(connection.pin).")
+                try require(nonempty(connection.note), "\(component.id): every connection needs an evidence note.")
+                let gpio: Int?
+                if let sourceID = connection.sourcePart {
+                    try require(sourceID != component.id, "\(component.id): self-connections are not supported.")
+                    try require(components.contains {
+                        $0.id == sourceID && $0.pins.contains { $0.name == connection.sourcePin }
+                    }, "\(component.id): unknown source \(sourceID):\(connection.sourcePin).")
+                    gpio = nil
+                } else if let pin = model.pins.first(where: { $0.label == connection.sourcePin }) {
+                    gpio = pin.gpio
+                } else {
+                    try require(model.connectors.contains(connection.sourcePin),
+                                "\(component.id): unknown board pin or connector \(connection.sourcePin).")
+                    gpio = nil
+                }
+                return PartConnection(
+                    partPin: connection.pin,
+                    end: WireEnd(boardPin: connection.sourcePin, gpio: gpio, partID: connection.sourcePart),
+                    origin: .documented(file: "hardware.json", note: connection.note))
+            }
+            return DetectedPart(
+                part: PartModel(
+                    id: component.id, name: component.name, summary: component.summary, pins: component.pins,
+                    resources: (component.resources ?? []).map {
+                        ComponentResource(title: $0.title, url: $0.url,
+                                          symbol: $0.url.pathExtension == "pdf" ? "doc" : "book")
+                    }, kind: component.kind),
+                namedInCode: false, connections: connections, issues: component.issues ?? [])
+        }
+    }
+}
+
 // MARK: - Scanner
 
 /// Finds external parts and their expected wiring in a PlatformIO project by
@@ -80,26 +243,114 @@ struct DetectedPart: Hashable, Sendable, Identifiable {
 /// - Arduino-ESP32 3.x `I2SClass`: `i2s.setPins(BCLK, WS, DOUT, ...)`
 /// - ESP-IDF legacy `i2s_pin_config_t` (`.bck_io_num`, `.ws_io_num`,
 ///   `.data_out_num`) and IDF 5 std mode (`.bclk`, `.ws`, `.dout`)
+/// - Volume buttons configured with `pinMode` and used with `digitalRead`.
 ///
 /// Anything computed at runtime or hidden behind macro arithmetic is out of
 /// scope (see PRD non-goals); such pins are reported as unresolved.
 enum PeripheralScanner {
     static func scan(projectAt root: URL, board: BoardModel) -> [DetectedPart] {
+        let root = root.resolvingSymlinksInPath().standardizedFileURL
+        if let declared = ProjectHardware.load(projectAt: root, board: board) {
+            return checkingSharedPins(declared)
+        }
         let files = sourceFiles(in: root)
         var symbols: [String: String] = [:]
         var texts: [(path: String, raw: String, code: String)] = []
         for url in files {
             guard let raw = try? String(contentsOf: url, encoding: .utf8) else { continue }
             let code = stripComments(raw)
-            let rel = String(url.path.dropFirst(root.path.count + 1))
+            let rel = String(url.resolvingSymlinksInPath().standardizedFileURL.path.dropFirst(root.path.count + 1))
             texts.append((rel, raw, code))
             collectSymbols(code, into: &symbols)
         }
         let ini = (try? String(contentsOf: root.appendingPathComponent("platformio.ini"), encoding: .utf8)) ?? ""
         let named = (texts.map(\.raw) + [ini]).contains { $0.range(of: "MAX98357", options: .caseInsensitive) != nil }
+        let identityText = (texts.map(\.raw) + [hardwareNotes(projectAt: root)]).joined(separator: "\n")
+        let dayton = identityText.range(of: #"\bPC83-8\b"#, options: [.regularExpression, .caseInsensitive]) != nil
+        let nuphy = identityText.range(of: #"\bNuPhy\b"#, options: [.regularExpression, .caseInsensitive]) != nil
 
-        guard let i2s = findI2SOutput(texts, symbols: symbols) else { return [] }
-        return [makeMAX98357A(i2s: i2s, texts: texts, symbols: symbols, board: board, named: named)]
+        var parts: [DetectedPart] = []
+        if let i2s = findI2SOutput(texts, symbols: symbols) {
+            parts.append(makeMAX98357A(i2s: i2s, texts: texts, symbols: symbols, board: board, named: named))
+            parts.append(DetectedPart(part: dayton ? .daytonPC83 : .speaker, namedInCode: false, connections: [
+                PartConnection(partPin: "+", end: WireEnd(boardPin: "OUT+", gpio: nil, partID: PartModel.max98357a.id),
+                               origin: .assumed("Not detectable in code. Connect a suitable passive speaker to the amplifier outputs.")),
+                PartConnection(partPin: "−", end: WireEnd(boardPin: "OUT−", gpio: nil, partID: PartModel.max98357a.id),
+                               origin: .assumed("Not ground. Never connect either speaker output to GND or an ESP32 GPIO.")),
+            ], issues: []))
+        }
+        parts += findVolumeButtons(texts, symbols: symbols, board: board, nuphy: nuphy)
+        return checkingSharedPins(parts)
+    }
+
+    private static func checkingSharedPins(_ parts: [DetectedPart]) -> [DetectedPart] {
+        return parts.map { part in
+            var issues = part.issues
+            for connection in part.connections {
+                guard let gpio = connection.end.gpio else { continue }
+                for other in parts where other.id != part.id {
+                    if other.connections.contains(where: { $0.end.gpio == gpio }) {
+                        issues.append("GPIO\(gpio) is also used by \(other.part.name).")
+                    }
+                }
+            }
+            return DetectedPart(part: part.part, namedInCode: part.namedInCode,
+                                connections: part.connections, issues: Array(Set(issues)).sorted())
+        }
+    }
+
+    static func hardwareNotes(projectAt root: URL) -> String {
+        ["README.md", "WIRING.md", "brief-radio.md", "hardware.json"].compactMap {
+            try? String(contentsOf: root.appendingPathComponent($0), encoding: .utf8)
+        }.joined(separator: "\n")
+    }
+
+    private static func findVolumeButtons(_ texts: [(path: String, raw: String, code: String)],
+                                          symbols: [String: String], board: BoardModel, nuphy: Bool) -> [DetectedPart] {
+        let pinMode = try! NSRegularExpression(
+            pattern: #"\bpinMode\s*\(\s*([A-Za-z_]\w*)\s*,\s*(INPUT(?:_PULLUP|_PULLDOWN)?)\s*\)"#)
+        var result: [DetectedPart] = []
+        for text in texts {
+            let ns = text.code as NSString
+            for match in pinMode.matches(in: text.code, range: NSRange(location: 0, length: ns.length)) {
+                let name = ns.substring(with: match.range(at: 1))
+                let upper = name.uppercased()
+                guard upper.contains("VOL"), upper.contains("UP") || upper.contains("DOWN") else { continue }
+                let readPattern = #"\bdigitalRead\s*\(\s*\#(name)\s*\)"#
+                guard texts.contains(where: { $0.code.range(of: readPattern, options: .regularExpression) != nil }) else { continue }
+                let part = PartModel.volumeButton(up: !upper.contains("DOWN"), nuphy: nuphy)
+                guard !result.contains(where: { $0.id == part.id }) else { continue }
+                let mode = ns.substring(with: match.range(at: 2))
+                let sourceLine = line(of: match.range(at: 1).location, in: ns)
+                var connections: [PartConnection] = []
+                var issues: [String] = []
+                switch resolve(name, symbols: symbols, board: board) {
+                case .gpio(let gpio):
+                    if let pin = board.pins.first(where: { $0.gpio == gpio }) {
+                        let definition = location(ofSymbol: name, in: texts)
+                        connections.append(PartConnection(
+                            partPin: "1", end: WireEnd(boardPin: pin.label, gpio: gpio),
+                            origin: .code(file: definition?.file ?? text.path, line: definition?.line ?? sourceLine,
+                                          expression: "\(name) = \(symbols[name] ?? name)")))
+                        if let note = pin.note { issues.append(note) }
+                    } else {
+                        issues.append("\(part.name) uses GPIO\(gpio), which isn't on the \(board.name) header (\(text.path):\(sourceLine)).")
+                    }
+                case .unresolved(let expression):
+                    issues.append("Couldn't work out \(part.name)'s pin: “\(expression)” (\(text.path):\(sourceLine)).")
+                }
+                if mode != "INPUT" {
+                    let rail = mode == "INPUT_PULLUP" ? "GND" : "3V3"
+                    connections.append(PartConnection(
+                        partPin: "2", end: WireEnd(boardPin: rail, gpio: nil),
+                        origin: .assumed("\(mode) at \(text.path):\(sourceLine). Conventional switch hookup to \(rail); physical wiring isn't detectable in code.")))
+                } else {
+                    issues.append("INPUT at \(text.path):\(sourceLine) needs an external pull resistor. The other switch contact can't be inferred.")
+                }
+                result.append(DetectedPart(part: part, namedInCode: true, connections: connections, issues: issues))
+            }
+        }
+        return result
     }
 
     // MARK: Files

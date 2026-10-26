@@ -39,6 +39,11 @@ final class Deployer {
 
     func deploy(_ link: ProjectLink, to board: Board, onSuccess: @escaping @MainActor () -> Void) {
         guard !isRunning else { return }
+        guard board.supportsUpload else {
+            targetMAC = board.macAddress
+            phase = .failed("Connect the board over USB to deploy. Wi-Fi monitoring is read-only.")
+            return
+        }
         guard FileManager.default.isExecutableFile(atPath: Self.pioURL.path) else {
             phase = .failed("PlatformIO not found. Install the PlatformIO IDE extension in VS Code.")
             return
@@ -78,6 +83,7 @@ final class Deployer {
             process = p
         } catch {
             phase = .failed("Couldn't start PlatformIO: \(error.localizedDescription)")
+            didReleasePort?(board.port)
         }
     }
 

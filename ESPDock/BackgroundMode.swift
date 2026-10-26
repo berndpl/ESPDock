@@ -33,6 +33,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let deployer = Deployer()
     let firmware = FirmwareProbe()
     let serial = SerialMonitor()
+    let wireless = WirelessController()
     /// Captured from the main window's environment. SwiftUI's OpenWindowAction
     /// is app-scoped, so it stays usable after that window has closed.
     var openMainWindow: (() -> Void)?
@@ -40,16 +41,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         monitor.onBoardConnected = { [weak self] board in
             self?.serial.boardAvailable(port: board.port)
+            self?.autoPairWireless()
             guard AppSettings.bringToFront else { return }
             self?.showMainWindow()
         }
+        monitor.onBoardDisconnected = { [weak self] in self?.wireless.usbDisconnected() }
         // Serial monitor ⇄ firmware probe ⇄ deployer share one port.
         firmware.monitor = serial
         serial.onReport = { [weak self] report in
-            self?.firmware.receive(report, mac: self?.monitor.board?.macAddress)
+            guard let self else { return }
+            self.firmware.receive(report, mac: Board.preferred(usb: self.monitor.board, wireless: self.wireless.board)?.macAddress)
         }
+        wireless.onIdentity = { [weak self] report, mac in self?.firmware.receive(report, mac: mac) }
+        wireless.onLine = { [weak self] line in
+            guard let self, self.monitor.board == nil else { return }
+            self.serial.receiveWireless(line)
+        }
+        wireless.onConnected = { [weak self] in
+            guard let self, self.monitor.board == nil else { return }
+            if self.serial.isWireless, let board = self.wireless.board {
+                self.serial.startWireless(endpoint: board.port)
+            }
+            wireless.onDisconnected = { [weak self] in
+                guard let self, self.monitor.board == nil, self.serial.isWireless else { return }
+                self.serial.boardGone()
+            }
+            if AppSettings.bringToFront { self.showMainWindow() }
+        }
+        wireless.resume()
+        autoPairWireless()   // a board already on USB at launch
         deployer.willUsePort = { [weak self] in self?.serial.suspend() }
-        deployer.didReleasePort = { [weak self] port in self?.serial.boardAvailable(port: port) }
+        deployer.didReleasePort = { [weak self] port in
+            self?.serial.boardAvailable(port: port)
+            // New firmware may have just enabled Wi-Fi logs (or a new address).
+            self?.autoPairWireless()
+        }
         #if DEBUG
         // Test hook: simulate a board connecting without replugging hardware.
         // Trigger: swift -e 'import Foundation; DistributedNotificationCenter.default()
@@ -81,6 +107,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
         if !hasVisibleWindows { showMainWindow() }
         return true
+    }
+
+    /// Wi-Fi monitoring pairs itself over USB; see WirelessController.autoPair.
+    private func autoPairWireless() {
+        guard let usb = monitor.board else { return }
+        wireless.autoPair(usb, serial: serial) { [weak self] in self?.deployer.isRunning ?? true }
     }
 
     func showMainWindow() {

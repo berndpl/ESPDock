@@ -19,6 +19,7 @@ struct ESPDockApp: App {
             MainWindowContent(appDelegate: appDelegate)
         }
         .windowResizability(.contentSize)
+        .defaultSize(width: ContentView.width, height: 760)
         // Unified toolbar holding the Serial Monitor toggle; no title text,
         // the board card already names what's shown.
         .windowToolbarStyle(.unified)
@@ -48,7 +49,8 @@ private struct MainWindowContent: View {
     var body: some View {
         ContentView(monitor: appDelegate.monitor, identities: appDelegate.identities,
                     projects: appDelegate.projects, deployer: appDelegate.deployer,
-                    firmware: appDelegate.firmware, serial: appDelegate.serial)
+                    firmware: appDelegate.firmware, serial: appDelegate.serial,
+                    wireless: appDelegate.wireless)
             .toolbar(removing: .title)
             .onAppear {
                 appDelegate.openMainWindow = { openWindow(id: "main") }

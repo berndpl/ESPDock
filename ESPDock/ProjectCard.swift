@@ -9,6 +9,8 @@ struct ProjectCard: View {
     let projects: ProjectLinks
     let deployer: Deployer
     let firmware: FirmwareProbe
+    /// What automatic USB pairing found; only drives the Wi-Fi hint row.
+    var wifiReadiness: WirelessController.Readiness = .unknown
     @State private var error: String?
     @State private var showLog = false
     /// AI coding tools used on the linked project, most recent first.
@@ -48,9 +50,20 @@ struct ProjectCard: View {
 
     @ViewBuilder private func linked(_ link: ProjectLink) -> some View {
         HStack(spacing: 10) {
-            Image(systemName: "folder.fill").foregroundStyle(.secondary)
-            Text(link.name).font(.headline)
-                .help("\(link.path)\nenv: \(link.environment)")
+            Button {
+                if !NSWorkspace.shared.open(link.url) {
+                    error = "Could not open the project folder: \(link.path)"
+                }
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "folder.fill").foregroundStyle(.secondary)
+                    Text(link.name).font(.headline).lineLimit(1).truncationMode(.middle)
+                }
+            }
+            .buttonStyle(.plain)
+            .help("Open folder in Finder\n\(link.path)\nenv: \(link.environment)")
+            .accessibilityLabel("Open \(link.name) in Finder")
+            .accessibilityIdentifier("project-open-folder")
             Spacer()
             // Native split button: click edits with the AI used on this
             // project (its CLI in Terminal); the chevron holds the rest.
@@ -103,6 +116,11 @@ struct ProjectCard: View {
 
         status(link)
         versionReportingRow(link)
+        wifiHintRow(link)
+        if !board.supportsUpload, case .changed = codeStatus(link) {
+            Text("Wi-Fi is read-only. Connect USB to deploy; local builds are still available in your editor.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
 
         if showLog, !deployer.log.isEmpty, deployer.targetMAC == board.macAddress {
             LogView(lines: deployer.log)
@@ -258,9 +276,47 @@ struct ProjectCard: View {
                 Button("Add Version Reporting…") { installVersionReporting(link) }
                     .controlSize(.small)
             }
-        } else if firmware.state(for: board) == .noAnswer, firmware.report(for: board) == nil {
-            Text("Version reporting is installed — deploy, and make sure setup() calls ESPDock::begin().")
-                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    /// Wi-Fi monitoring sets itself up over USB (WirelessController.autoPair);
+    /// this row appears only when the firmware needs a change for it. Shown
+    /// only once version reporting works, so it never stacks on that row.
+    @ViewBuilder private func wifiHintRow(_ link: ProjectLink) -> some View {
+        if board.transport == .usb, firmware.report(for: board) != nil {
+            switch wifiReadiness {
+            case .needsLibraryUpdate:
+                HStack {
+                    Label("Wi-Fi logs need the current ESPDock library.", systemImage: "wifi")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Update Library") {
+                        do {
+                            try VersionReportingInstaller.install(projectAt: link.url, environment: link.environment)
+                            projects.rescan()
+                        } catch { self.error = error.localizedDescription }
+                    }
+                    .controlSize(.small)
+                    .disabled(deployer.isRunning)
+                    .help("Updates lib/ESPDock in \(link.name). Deploy afterwards.")
+                }
+            case .needsWiFiLogs:
+                HStack {
+                    Label("For Wi-Fi logs, call ESPDock::begin(true) and deploy.", systemImage: "wifi")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Copy Code") {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString("ESPDock::begin(true);", forType: .string)
+                    }
+                    .controlSize(.small)
+                }
+            case .boardOffWiFi:
+                Label("Wi-Fi logs are on, but the board hasn't joined Wi-Fi.", systemImage: "wifi.exclamationmark")
+                    .font(.caption).foregroundStyle(.secondary)
+            case .unknown, .paired:
+                EmptyView()
+            }
         }
     }
 
@@ -312,7 +368,8 @@ struct ProjectCard: View {
         }
         .buttonStyle(.borderedProminent)
         .keyboardShortcut("r", modifiers: .command)
-        .help("Build \(link.environment) and upload to \(board.port)  (⌘R)")
+        .disabled(!board.supportsUpload)
+        .help(board.supportsUpload ? "Build \(link.environment) and upload to \(board.port)  (⌘R)" : "Connect USB to deploy. Wi-Fi uploads are not supported.")
     }
 
     private var running: some View {

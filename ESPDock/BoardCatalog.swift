@@ -51,6 +51,21 @@ struct OnboardFeature: Identifiable, Hashable {
     let detail: String
 }
 
+struct BoardPowerProfile: Hashable {
+    let inputVolts: Double
+    let inputPin: String
+    let groundPin: String
+    let boardAllowanceAmps: Double
+    let assumption: String
+    var resources: [ComponentResource] = []
+
+    var isValid: Bool {
+        inputVolts > 0 && boardAllowanceAmps > 0 && inputVolts.isFinite
+            && boardAllowanceAmps.isFinite && (inputVolts * boardAllowanceAmps).isFinite
+            && !inputPin.isEmpty && !groundPin.isEmpty && inputPin != groundPin
+    }
+}
+
 struct BoardModel: Identifiable, Hashable {
     let id: String
     let name: String
@@ -64,6 +79,8 @@ struct BoardModel: Identifiable, Hashable {
     let features: [OnboardFeature]
     let referenceURL: URL
     let schematicURL: URL
+    var powerProfile: BoardPowerProfile? = nil
+    var connectors: [String] = []
 
     func pins(on side: Pin.Side) -> [Pin] { pins.filter { $0.side == side } }
 }
@@ -73,7 +90,7 @@ enum BoardCatalog {
     /// enumerate as 303A:1001, so the model can't be detected — the user picks
     /// it once and it's remembered per MAC address.
     static func candidates(for board: Board) -> [BoardModel] {
-        board.vendorID == BoardMonitor.espressifVendorID ? [xiaoESP32S3] : []
+        board.isCertainlyESP32 ? [xiaoESP32S3] : []
     }
 
     static func model(id: String) -> BoardModel? {
@@ -139,7 +156,15 @@ enum BoardCatalog {
             .init(name: "Antenna", detail: "U.FL connector, bottom-left of the front"),
         ],
         referenceURL: URL(string: "https://wiki.seeedstudio.com/xiao_esp32s3_getting_started/")!,
-        schematicURL: URL(string: "https://files.seeedstudio.com/wiki/SeeedStudio-XIAO-ESP32S3/new-res/202003751_XIAO%20ESP32S3_v1.4_SCH_260226.pdf.pdf")!)
+        schematicURL: URL(string: "https://files.seeedstudio.com/wiki/SeeedStudio-XIAO-ESP32S3/new-res/202003751_XIAO%20ESP32S3_v1.4_SCH_260226.pdf.pdf")!,
+        powerProfile: BoardPowerProfile(
+            inputVolts: 5, inputPin: "5V", groundPin: "GND", boardAllowanceAmps: 0.5,
+            assumption: "500 mA at the 5 V input is a conservative engineering allowance informed by Espressif's 3.3 V supply guideline, not typical or measured draw. A battery-only XIAO does not energize the 5 V pin; external 5 V parts then need their own supply or boost converter.",
+            resources: [
+                ComponentResource(title: "ESP32-S3 supply guidelines",
+                    url: URL(string: "https://docs.espressif.com/projects/esp-hardware-design-guidelines/en/latest/esp32s3/schematic-checklist.html#power-supply")!),
+            ]),
+        connectors: ["B2B"])
 }
 
 /// Remembers which board model a physical board is, keyed by its MAC address

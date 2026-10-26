@@ -7,7 +7,7 @@ import Observation
 /// What the firmware says about itself (ESPDock firmware library, see
 /// FirmwareLib/ESPDock). `source` is the combined CodeFingerprint hash of the
 /// code it was built from.
-struct FirmwareReport: Codable, Equatable {
+struct FirmwareReport: Codable, Equatable, Sendable {
     let project: String
     let env: String
     let commit: String
@@ -117,12 +117,17 @@ final class FirmwareProbe {
     }
 
     func probe(_ board: Board, after delay: Duration = .seconds(1.5)) {
-        guard let mac = board.macAddress, !inFlight.contains(mac) else { return }
+        guard board.transport == .usb, let mac = board.macAddress, !inFlight.contains(mac) else { return }
         inFlight.insert(mac)
         if states[mac] == nil || states[mac] == .noAnswer { states[mac] = .probing }
         let port = board.port
+        let started = Date()
         Task {
             try? await Task.sleep(for: delay)
+            if let received = lastReceived[mac], received > started {
+                inFlight.remove(mac)
+                return
+            }
             if let monitor, case .open = monitor.status {
                 // Ask through the open monitor; the reply arrives via receive().
                 lastReceived[mac] = nil
@@ -137,6 +142,7 @@ final class FirmwareProbe {
                 SerialProbe.query(port: port) ?? SerialProbe.query(port: port)
             }.value
             inFlight.remove(mac)
+            if let received = lastReceived[mac], received > started { return }
             states[mac] = report.map(State.reported) ?? .noAnswer
         }
     }

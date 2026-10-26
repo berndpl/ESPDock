@@ -34,6 +34,52 @@ may run the local PlatformIO CLI (`~/.platformio/penv/bin/pio`) directly.
      rated current), USB power budget (allocated / port limit).
    - Hint when a Mac port has something attached whose data link macOS's
      accessory security hasn't authorized (board powered but invisible).
+6. **Paired Wi-Fi monitoring** *(done; verified with the physical radio)*
+   - Optional one-viewer TCP sender, authenticated with a board-generated
+     NVS token obtained over USB and saved in macOS Keychain.
+   - Same board/project/model key, USB preferred, no duplicated device.
+   - Read-only logs/identity; no invented cable or USB power facts.
+   - Automatic transient reconnect; identity/authentication failures require
+     intervention. Uploads are rejected by both the view and deployer.
+   - Plaintext, trusted LAN only. No OTA, discovery, web server or debugger.
+     See README for setup, protocol, bounds and unprofiled resource costs.
+   - **Setup is automatic (2026-10-18).** The earlier setup sheet (toolbar
+     button, pair button, manual address/port/token form, Allow/Reconnect/
+     Disconnect/Forget) felt like too much for "keep logs after unplugging".
+     Now ESPDock pairs over USB in the background when a board appears and
+     after each deploy, and an unplugged board continues over Wi-Fi with the
+     session's token. Visible controls: one hint row in the project card when
+     the firmware needs a change, **Connect over Wi-Fi** in the empty state
+     only when the app started without USB (an explicit Keychain read, kept
+     on purpose; the user chose Keychain over a private token file), and
+     **Forget Wi-Fi Pairing** in the board card's context menu. Manual
+     pairing was dropped: replugging USB re-pairs, including after a DHCP
+     address change.
+7. **Project power estimate** *(done)*
+   - Compact, expandable budget at the top of the schematic, derived from its
+     known board, amplifier supply wiring and nominal speaker impedance.
+   - XIAO 5 V board allowance plus MAX98357A input power (audio output divided
+     by assumed efficiency, plus idle allowance). Passive speaker/switch loads
+     are not counted twice.
+   - Explicit assumptions, source links, a 25% supply margin and whole-amp
+     capacity recommendation; no live-current or battery-runtime claims.
+   - Unknown components, unsupported rails and missing speaker impedance
+     produce an incomplete estimate, not a deceptively small total.
+   - Compares the load and 25% margin against current USB allocation, keeping
+     upstream capacity as context rather than another supply option. User-named voltage/current supply
+     profiles are reusable across projects. Voltage mismatches are not
+     compared; charger identification, conversion and PD negotiation are
+     never inferred.
+   - Board input rails and allowances come from optional catalog profiles,
+     not an ESP-Radio/project-name special case. Missing profiles and
+     unsupported schematic configurations remain explicitly incomplete.
+   - Keep sizing figures, supply comparisons and wiring warnings in the card;
+     calculation details, assumptions and vertically listed reference links
+     live in its info popover.
+   - A single-row Power entry has its expand/collapse chevron on the right.
+     Only known current-connection shortfalls show an exclamation mark.
+     The expanded view has a compact supply-comparison picker and info button.
+     Saved profiles can retain unknown ratings plus specification URLs/notes.
 
 ## Success criteria
 - Plugging/unplugging the XIAO ESP32S3 updates the window within ~1 s.
@@ -59,7 +105,9 @@ may run the local PlatformIO CLI (`~/.platformio/penv/bin/pio`) directly.
   through ESPDock.
 - **No live power draw.** macOS has no per-port current measurement; only
   the USB power *budget* is shown, labelled as such. Real draw would need a
-  sensor on the board (e.g. INA219) reporting over serial.
+  sensor on the board (e.g. INA219) reporting over serial. The schematic's
+  separate power estimate is an explicitly assumed supply-sizing calculation;
+  it does not turn USB allocation into a measurement.
 - **Board → Mac port mapping via IOPort transport metadata** (vendor/product
   ID + serial number on the port's USB2/USB3 node), not controller numbering,
   which isn't documented. The IOPort plane itself is undocumented (it's what
@@ -84,7 +132,8 @@ may run the local PlatformIO CLI (`~/.platformio/penv/bin/pio`) directly.
 - **Build & Deploy** runs `~/.platformio/penv/bin/pio run -e ENV -t upload
   --upload-port PORT`; progress parsed from esptool "Writing at … (N %)".
   Disconnects get a 2 s grace period so the post-upload reset doesn't flash
-  "No board".
+  "No board". Repeated removal notifications do not restart that deadline;
+  a lasting unplug clears USB state so Wi-Fi or the disconnected state takes over.
 - **Firmware version report**: `lib/ESPDock` (installed by "Add Version
   Reporting…") + pre-build script stamping project/env/commit/build time/
   source hash; `ESPDock::begin()` prints it at boot and answers `ESPDOCK?`.
@@ -96,7 +145,7 @@ may run the local PlatformIO CLI (`~/.platformio/penv/bin/pio`) directly.
   a native `.inspector`, toggled from the window toolbar (⇧⌘M); its controls
   (baud, pause, timestamps, clear) sit in the toolbar above the column. The
   inspector reserves its column even while hidden, so the outer frame is
-  pinned explicitly (520 pt closed, 960 pt open; height = measured cards).
+  pinned explicitly (520 pt closed, 960 pt open; height is user-resizable).
   Not persisted: the window always opens without the monitor.
 
 ## Feature: wiring to external parts (2026-10-17)
@@ -133,5 +182,36 @@ expects. With no recognised part, the card looks exactly as before.
   GPIO used twice, a symbol ESPDock couldn't resolve.
 
 **Non-goals.** A general netlist or schematic editor; parsing arbitrary
-C++ (macros with arithmetic, runtime pin selection); parts other than the
-MAX98357A in this version; drawing the part to scale.
+C++ (macros with arithmetic, runtime pin selection); drawing the part to scale.
+
+### Radio controls and speaker
+
+The diagram also includes volume up/down momentary switches, detected from
+`VOL` + `UP`/`DOWN` identifiers used in both `pinMode` and `digitalRead`.
+Signal wires carry source locations. Switch returns are assumptions based on
+`INPUT_PULLUP` (GND) or `INPUT_PULLDOWN` (3V3); plain `INPUT` instead warns
+about the required external pull resistor. Shared GPIOs across parts are
+flagged. Buttons can appear without an amplifier.
+
+An amplifier implies an **assumed**, generic passive speaker connected to
+OUT+/OUT−, not GPIOs or GND. Code cannot establish the speaker's presence,
+model, impedance or power rating. All external endpoints are namespaced by
+part ID so repeated contact names and shared ground remain distinct.
+
+Components appear in separate vertically stacked cells, with long wire runs
+outside the cells. Source locations and issues live in expandable Wiring
+details. Detection always uses the linked local project; a similarly named
+GitHub repository does not supply wiring for an unrelated local sketch.
+
+All component cells have an info button for available documentation. MAX98357A
+links include the guide, datasheet and explicitly labelled reference-breakout
+schematic. Speaker and switch identities can come from source comments or
+`README.md`, `WIRING.md`, `brief-radio.md`; notes enrich existing detected
+components, never create connections. The radio uses Dayton Audio PC83-8
+(8 Ω) and NuPhy switches (exact variant unspecified). Wiring stays assumed
+where it cannot be established by code. Documentation changes rescan identities
+without marking firmware as modified.
+
+The window keeps its fixed width but permits vertical resizing. Connection
+and project cards remain above a flexible, internally scrolling schematic card;
+opening the serial inspector preserves the chosen window height.
